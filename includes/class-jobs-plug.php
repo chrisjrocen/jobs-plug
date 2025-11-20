@@ -170,6 +170,11 @@ class Jobs_Plug {
 			return;
 		}
 
+		// Don't filter single job posts - they should always be accessible.
+		if ( $query->is_singular() || $query->get( 'name' ) || $query->get( 'p' ) ) {
+			return;
+		}
+
 		// Check if this is a job archive by checking the query object.
 		$post_type = $query->get( 'post_type' );
 		$taxonomy  = $query->get( 'taxonomy' );
@@ -290,6 +295,22 @@ class Jobs_Plug {
 			);
 		}
 
+		// Exclude expired jobs.
+		$today = current_time( 'Y-m-d' );
+		$meta_query[] = array(
+			'relation' => 'OR',
+			array(
+				'key'     => '_job_expiry_date',
+				'compare' => 'NOT EXISTS',
+			),
+			array(
+				'key'     => '_job_expiry_date',
+				'value'   => $today,
+				'compare' => '>=',
+				'type'    => 'DATE',
+			),
+		);
+
 		// Apply meta query if we added any filters.
 		if ( count( $meta_query ) > 0 ) {
 			// Set relation to AND if not already set.
@@ -385,6 +406,22 @@ class Jobs_Plug {
 				'value' => '1',
 			);
 		}
+
+		// Exclude expired jobs.
+		$today = current_time( 'Y-m-d' );
+		$meta_query[] = array(
+			'relation' => 'OR',
+			array(
+				'key'     => '_job_expiry_date',
+				'compare' => 'NOT EXISTS',
+			),
+			array(
+				'key'     => '_job_expiry_date',
+				'value'   => $today,
+				'compare' => '>=',
+				'type'    => 'DATE',
+			),
+		);
 
 		if ( ! empty( $meta_query ) ) {
 			$meta_query['relation'] = 'AND';
