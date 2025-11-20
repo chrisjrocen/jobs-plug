@@ -139,6 +139,11 @@
 	border: 2px solid #00a7ac;
 }
 
+.jobs-plug-card.jobs-plug-card-expired {
+	opacity: 0.7;
+	border: 2px solid #d32f2f;
+}
+
 .jobs-plug-badge-featured {
 	position: absolute;
 	top: 10px;
@@ -152,9 +157,32 @@
 	display: flex;
 	align-items: center;
 	gap: 5px;
+	z-index: 1;
 }
 
 .jobs-plug-badge-featured .dashicons {
+	width: 16px;
+	height: 16px;
+	font-size: 16px;
+}
+
+.jobs-plug-badge-expired {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	background: #d32f2f;
+	color: #fff;
+	padding: 5px 12px;
+	border-radius: 4px;
+	font-size: 12px;
+	font-weight: 600;
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	z-index: 1;
+}
+
+.jobs-plug-badge-expired .dashicons {
 	width: 16px;
 	height: 16px;
 	font-size: 16px;
@@ -250,6 +278,11 @@
 	display: flex;
 	align-items: center;
 	gap: 5px;
+}
+
+.jobs-plug-expiry.jobs-plug-expiry-expired {
+	color: #d32f2f;
+	font-weight: 600;
 }
 
 .jobs-plug-expiry .dashicons {
@@ -411,6 +444,45 @@
 	max-width: 100%;
 	height: auto;
 	border-radius: 8px;
+}
+
+/* Expired Banner */
+.jobs-plug-expired-banner {
+	background: #fff3e0;
+	border-left: 4px solid #d32f2f;
+	padding: 20px;
+	margin-bottom: 30px;
+	border-radius: 4px;
+	display: flex;
+	align-items: flex-start;
+	gap: 15px;
+	box-shadow: 0 2px 4px rgba(211, 47, 47, 0.1);
+}
+
+.jobs-plug-expired-banner .dashicons {
+	color: #d32f2f;
+	font-size: 24px;
+	width: 24px;
+	height: 24px;
+	flex-shrink: 0;
+	margin-top: 2px;
+}
+
+.jobs-plug-expired-banner-content {
+	flex: 1;
+}
+
+.jobs-plug-expired-banner-content strong {
+	color: #d32f2f;
+	font-size: 16px;
+	display: block;
+	margin-bottom: 8px;
+}
+
+.jobs-plug-expired-banner-content p {
+	color: #666;
+	margin: 0;
+	line-height: 1.6;
 }
 
 .jobs-plug-single-content h2 {

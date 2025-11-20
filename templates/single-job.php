@@ -104,6 +104,32 @@ get_header();
 						</div>
 					<?php endif; ?>
 
+					<!-- Expired Notification -->
+					<?php
+					if ( ! empty( $expiry_date ) ) {
+						$expiry_timestamp = strtotime( $expiry_date );
+						if ( $expiry_timestamp && $expiry_timestamp < current_time( 'timestamp' ) ) :
+							?>
+							<div class="jobs-plug-expired-banner">
+								<span class="dashicons dashicons-warning"></span>
+								<div class="jobs-plug-expired-banner-content">
+									<strong><?php esc_html_e( 'This job has expired', 'jobs-plug' ); ?></strong>
+									<p>
+										<?php
+										printf(
+											/* translators: %s: expiry date */
+											esc_html__( 'This position expired on %s and is no longer accepting applications.', 'jobs-plug' ),
+											'<strong>' . esc_html( date_i18n( get_option( 'date_format' ), $expiry_timestamp ) ) . '</strong>'
+										);
+										?>
+									</p>
+								</div>
+							</div>
+							<?php
+						endif;
+					}
+					?>
+
 					<!-- Job Description -->
 					<div class="jobs-plug-single-content">
 						<h2><?php esc_html_e( 'Job Description', 'jobs-plug' ); ?></h2>

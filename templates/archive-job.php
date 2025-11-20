@@ -114,15 +114,36 @@ get_header();
 						$is_featured = get_post_meta( get_the_ID(), '_job_is_featured', true );
 						$expiry_date = get_post_meta( get_the_ID(), '_job_expiry_date', true );
 
+						// Check if job is expired.
+						$is_expired = false;
+						if ( ! empty( $expiry_date ) ) {
+							$expiry_timestamp = strtotime( $expiry_date );
+							$is_expired       = ( $expiry_timestamp && $expiry_timestamp < current_time( 'timestamp' ) );
+						}
+
 						// Get taxonomy terms.
 						$employers  = get_the_terms( get_the_ID(), 'employer' );
 						$locations  = get_the_terms( get_the_ID(), 'location' );
 						$job_types  = get_the_terms( get_the_ID(), 'job_type' );
+
+						// Add expired class to card.
+						$card_classes = array( 'jobs-plug-card' );
+						if ( $is_featured ) {
+							$card_classes[] = 'jobs-plug-featured';
+						}
+						if ( $is_expired ) {
+							$card_classes[] = 'jobs-plug-card-expired';
+						}
 						?>
 
-						<article class="jobs-plug-card <?php echo $is_featured ? 'jobs-plug-featured' : ''; ?>">
+						<article class="<?php echo esc_attr( implode( ' ', $card_classes ) ); ?>">
 
-							<?php if ( $is_featured ) : ?>
+							<?php if ( $is_expired ) : ?>
+								<div class="jobs-plug-badge-expired">
+									<span class="dashicons dashicons-warning"></span>
+									<?php esc_html_e( 'Expired', 'jobs-plug' ); ?>
+								</div>
+							<?php elseif ( $is_featured ) : ?>
 								<div class="jobs-plug-badge-featured">
 									<span class="dashicons dashicons-star-filled"></span>
 									<?php esc_html_e( 'Featured', 'jobs-plug' ); ?>
@@ -175,14 +196,22 @@ get_header();
 
 								<div class="jobs-plug-card-footer">
 									<?php if ( ! empty( $expiry_date ) ) : ?>
-										<div class="jobs-plug-expiry">
+										<div class="jobs-plug-expiry <?php echo $is_expired ? 'jobs-plug-expiry-expired' : ''; ?>">
 											<span class="dashicons dashicons-calendar-alt"></span>
 											<?php
-											printf(
-												/* translators: %s: expiry date */
-												esc_html__( 'Expires: %s', 'jobs-plug' ),
-												esc_html( date_i18n( get_option( 'date_format' ), strtotime( $expiry_date ) ) )
-											);
+											if ( $is_expired ) {
+												printf(
+													/* translators: %s: expiry date */
+													esc_html__( 'Expired on: %s', 'jobs-plug' ),
+													esc_html( date_i18n( get_option( 'date_format' ), strtotime( $expiry_date ) ) )
+												);
+											} else {
+												printf(
+													/* translators: %s: expiry date */
+													esc_html__( 'Expires: %s', 'jobs-plug' ),
+													esc_html( date_i18n( get_option( 'date_format' ), strtotime( $expiry_date ) ) )
+												);
+											}
 											?>
 										</div>
 									<?php endif; ?>
