@@ -51,8 +51,10 @@ require_once JOBS_PLUG_PATH . 'includes/class-jobs-plug.php';
  * Plugin activation hook.
  */
 function activate_jobs_plug() {
-	// Activation code here.
-	// Example: Create database tables, set default options, etc.
+	// Register the custom post type and taxonomies so rewrite rules are added.
+	$plugin = Jobs_Plug::get_instance();
+	$plugin->register_job_post_type();
+	$plugin->register_job_taxonomies();
 
 	// Flush rewrite rules.
 	flush_rewrite_rules();
