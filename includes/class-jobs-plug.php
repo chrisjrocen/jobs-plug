@@ -56,6 +56,12 @@ class Jobs_Plug {
 		// Register custom taxonomies.
 		add_action( 'init', array( $this, 'register_job_taxonomies' ) );
 
+		// Template loading.
+		add_filter( 'template_include', array( $this, 'load_job_templates' ) );
+
+		// Enqueue scripts and styles.
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
+
 		// Admin hooks.
 		if ( is_admin() ) {
 			add_action( 'admin_init', array( $this, 'admin_init' ) );
@@ -77,6 +83,50 @@ class Jobs_Plug {
 		);
 
 		// Plugin initialization code here.
+	}
+
+	/**
+	 * Load custom templates for Job post type.
+	 *
+	 * @param string $template The path to the template file.
+	 * @return string The modified template path.
+	 */
+	public function load_job_templates( $template ) {
+		// Check if it's a single job post.
+		if ( is_singular( 'job' ) ) {
+			$plugin_template = JOBS_PLUG_PATH . 'templates/single-job.php';
+			if ( file_exists( $plugin_template ) ) {
+				return $plugin_template;
+			}
+		}
+
+		// Check if it's a job archive or taxonomy.
+		if ( is_post_type_archive( 'job' ) || is_tax( array( 'job_category', 'employer', 'location', 'job_type' ) ) ) {
+			$plugin_template = JOBS_PLUG_PATH . 'templates/archive-job.php';
+			if ( file_exists( $plugin_template ) ) {
+				return $plugin_template;
+			}
+		}
+
+		return $template;
+	}
+
+	/**
+	 * Enqueue frontend assets.
+	 */
+	public function enqueue_frontend_assets() {
+		// Only load on job-related pages.
+		if ( is_singular( 'job' ) || is_post_type_archive( 'job' ) || is_tax( array( 'job_category', 'employer', 'location', 'job_type' ) ) ) {
+			wp_enqueue_style(
+				'jobs-plug-frontend',
+				JOBS_PLUG_URL . 'assets/css/jobs-plug-frontend.css',
+				array(),
+				JOBS_PLUG_VERSION
+			);
+
+			// Enqueue dashicons for icons.
+			wp_enqueue_style( 'dashicons' );
+		}
 	}
 
 	/**
