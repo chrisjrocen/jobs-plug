@@ -103,6 +103,75 @@
 	min-width: 150px;
 }
 
+/* Salary Range Filter */
+.jobs-plug-filter-salary {
+	flex-direction: column;
+	align-items: flex-start;
+}
+
+.jobs-plug-salary-inputs {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.jobs-plug-salary-inputs input[type="number"] {
+	width: 100px;
+	padding: 8px 12px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	font-size: 14px;
+}
+
+.jobs-plug-salary-separator {
+	color: #666;
+}
+
+/* Checkbox Filter */
+.jobs-plug-filter-checkbox {
+	align-items: center;
+}
+
+.jobs-plug-filter-checkbox label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+	font-weight: 600;
+	color: #2c2c34;
+}
+
+.jobs-plug-filter-checkbox input[type="checkbox"] {
+	cursor: pointer;
+	width: 18px;
+	height: 18px;
+	margin: 0;
+}
+
+/* Filter Actions */
+.jobs-plug-filter-actions {
+	margin-left: auto;
+}
+
+.jobs-plug-reset-button {
+	display: inline-flex;
+	align-items: center;
+	padding: 8px 20px;
+	background: #f5f5f5;
+	color: #2c2c34;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	text-decoration: none;
+	font-size: 14px;
+	font-weight: 600;
+	transition: all 0.3s ease;
+}
+
+.jobs-plug-reset-button:hover {
+	background: #e0e0e0;
+	border-color: #bbb;
+}
+
 /* Results Info */
 .jobs-plug-results-info {
 	margin-bottom: 20px;
@@ -653,6 +722,24 @@
 
 	.jobs-plug-filter select {
 		width: 100%;
+	}
+
+	.jobs-plug-salary-inputs {
+		width: 100%;
+	}
+
+	.jobs-plug-salary-inputs input[type="number"] {
+		flex: 1;
+	}
+
+	.jobs-plug-filter-actions {
+		margin-left: 0;
+		width: 100%;
+	}
+
+	.jobs-plug-reset-button {
+		width: 100%;
+		justify-content: center;
 	}
 
 	.jobs-plug-grid {

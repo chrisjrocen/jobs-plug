@@ -65,6 +65,13 @@ class Jobs_Plug {
 		// Add schema markup.
 		add_action( 'wp_head', array( $this, 'output_job_schema_markup' ), 10 );
 
+		// Filter job archives based on GET parameters.
+		add_action( 'pre_get_posts', array( $this, 'filter_job_archives' ) );
+
+		// AJAX handlers for live filtering.
+		add_action( 'wp_ajax_jobs_plug_filter', array( $this, 'ajax_filter_jobs' ) );
+		add_action( 'wp_ajax_nopriv_jobs_plug_filter', array( $this, 'ajax_filter_jobs' ) );
+
 		// Admin hooks.
 		if ( is_admin() ) {
 			add_action( 'admin_init', array( $this, 'admin_init' ) );
@@ -129,7 +136,442 @@ class Jobs_Plug {
 
 			// Enqueue dashicons for icons.
 			wp_enqueue_style( 'dashicons' );
+
+			// Enqueue filter JavaScript on archive pages only.
+			if ( is_post_type_archive( 'job' ) || is_tax( array( 'job_category', 'employer', 'location', 'job_type' ) ) ) {
+				wp_enqueue_script(
+					'jobs-plug-filter',
+					JOBS_PLUG_URL . 'assets/js/jobs-filter.js',
+					array(),
+					JOBS_PLUG_VERSION,
+					true
+				);
+
+				// Localize script with AJAX URL.
+				wp_localize_script(
+					'jobs-plug-filter',
+					'jobsPlugAjax',
+					array(
+						'ajaxurl' => admin_url( 'admin-ajax.php' ),
+					)
+				);
+			}
 		}
+	}
+
+	/**
+	 * Filter job archives based on GET parameters.
+	 *
+	 * @param WP_Query $query The WordPress query object.
+	 */
+	public function filter_job_archives( $query ) {
+		// Only modify main query on job archives.
+		if ( is_admin() || ! $query->is_main_query() ) {
+			return;
+		}
+
+		// Check if this is a job archive by checking the query object.
+		$post_type = $query->get( 'post_type' );
+		$taxonomy  = $query->get( 'taxonomy' );
+
+		$is_job_archive = false;
+
+		// Check if it's the job post type archive.
+		if ( 'job' === $post_type ) {
+			$is_job_archive = true;
+		}
+
+		// Check if it's a job taxonomy archive.
+		$job_taxonomies = array( 'job_category', 'employer', 'location', 'job_type' );
+		if ( in_array( $taxonomy, $job_taxonomies, true ) ) {
+			$is_job_archive = true;
+			// Ensure post type is set for taxonomy archives.
+			$query->set( 'post_type', 'job' );
+		}
+
+		// Return if not a job archive.
+		if ( ! $is_job_archive ) {
+			return;
+		}
+
+		// Debug: Log that we're filtering (can be removed later).
+		// error_log( 'Jobs Plug: Filtering job archives with GET params: ' . print_r( $_GET, true ) );
+
+
+		// Get existing tax query if any.
+		$tax_query = $query->get( 'tax_query' );
+		if ( ! is_array( $tax_query ) ) {
+			$tax_query = array();
+		}
+
+		// Filter by category.
+		if ( ! empty( $_GET['job_category'] ) ) {
+			$tax_query[] = array(
+				'taxonomy' => 'job_category',
+				'field'    => 'slug',
+				'terms'    => sanitize_text_field( wp_unslash( $_GET['job_category'] ) ),
+			);
+		}
+
+		// Filter by employer.
+		if ( ! empty( $_GET['employer'] ) ) {
+			$tax_query[] = array(
+				'taxonomy' => 'employer',
+				'field'    => 'slug',
+				'terms'    => sanitize_text_field( wp_unslash( $_GET['employer'] ) ),
+			);
+		}
+
+		// Filter by location.
+		if ( ! empty( $_GET['location'] ) ) {
+			$tax_query[] = array(
+				'taxonomy' => 'location',
+				'field'    => 'slug',
+				'terms'    => sanitize_text_field( wp_unslash( $_GET['location'] ) ),
+			);
+		}
+
+		// Filter by job type.
+		if ( ! empty( $_GET['job_type'] ) ) {
+			$tax_query[] = array(
+				'taxonomy' => 'job_type',
+				'field'    => 'slug',
+				'terms'    => sanitize_text_field( wp_unslash( $_GET['job_type'] ) ),
+			);
+		}
+
+		// Apply tax query if we added any filters.
+		if ( count( $tax_query ) > 0 ) {
+			// Set relation to AND if not already set.
+			if ( ! isset( $tax_query['relation'] ) ) {
+				$tax_query['relation'] = 'AND';
+			}
+			$query->set( 'tax_query', $tax_query );
+		}
+
+		// Get existing meta query if any.
+		$meta_query = $query->get( 'meta_query' );
+		if ( ! is_array( $meta_query ) ) {
+			$meta_query = array();
+		}
+
+		// Filter by salary range.
+		if ( ! empty( $_GET['salary_min'] ) && ! empty( $_GET['salary_max'] ) ) {
+			// Both min and max set - use BETWEEN.
+			$meta_query[] = array(
+				'key'     => '_job_salary',
+				'value'   => array( absint( $_GET['salary_min'] ), absint( $_GET['salary_max'] ) ),
+				'type'    => 'NUMERIC',
+				'compare' => 'BETWEEN',
+			);
+		} elseif ( ! empty( $_GET['salary_min'] ) ) {
+			// Only min set - use >=.
+			$meta_query[] = array(
+				'key'     => '_job_salary',
+				'value'   => absint( $_GET['salary_min'] ),
+				'type'    => 'NUMERIC',
+				'compare' => '>=',
+			);
+		} elseif ( ! empty( $_GET['salary_max'] ) ) {
+			// Only max set - use <=.
+			$meta_query[] = array(
+				'key'     => '_job_salary',
+				'value'   => absint( $_GET['salary_max'] ),
+				'type'    => 'NUMERIC',
+				'compare' => '<=',
+			);
+		}
+
+		// Filter by featured status.
+		if ( ! empty( $_GET['featured_only'] ) && '1' === $_GET['featured_only'] ) {
+			$meta_query[] = array(
+				'key'   => '_job_is_featured',
+				'value' => '1',
+			);
+		}
+
+		// Apply meta query if we added any filters.
+		if ( count( $meta_query ) > 0 ) {
+			// Set relation to AND if not already set.
+			if ( ! isset( $meta_query['relation'] ) ) {
+				$meta_query['relation'] = 'AND';
+			}
+			$query->set( 'meta_query', $meta_query );
+		}
+	}
+
+	/**
+	 * AJAX handler for live job filtering.
+	 */
+	public function ajax_filter_jobs() {
+		// Build query args from POST parameters.
+		$args = array(
+			'post_type'      => 'job',
+			'posts_per_page' => get_option( 'posts_per_page' ),
+			'post_status'    => 'publish',
+		);
+
+		// Build tax query.
+		$tax_query = array();
+
+		if ( ! empty( $_POST['job_category'] ) ) {
+			$tax_query[] = array(
+				'taxonomy' => 'job_category',
+				'field'    => 'slug',
+				'terms'    => sanitize_text_field( wp_unslash( $_POST['job_category'] ) ),
+			);
+		}
+
+		if ( ! empty( $_POST['employer'] ) ) {
+			$tax_query[] = array(
+				'taxonomy' => 'employer',
+				'field'    => 'slug',
+				'terms'    => sanitize_text_field( wp_unslash( $_POST['employer'] ) ),
+			);
+		}
+
+		if ( ! empty( $_POST['location'] ) ) {
+			$tax_query[] = array(
+				'taxonomy' => 'location',
+				'field'    => 'slug',
+				'terms'    => sanitize_text_field( wp_unslash( $_POST['location'] ) ),
+			);
+		}
+
+		if ( ! empty( $_POST['job_type'] ) ) {
+			$tax_query[] = array(
+				'taxonomy' => 'job_type',
+				'field'    => 'slug',
+				'terms'    => sanitize_text_field( wp_unslash( $_POST['job_type'] ) ),
+			);
+		}
+
+		if ( ! empty( $tax_query ) ) {
+			$tax_query['relation'] = 'AND';
+			$args['tax_query']     = $tax_query;
+		}
+
+		// Build meta query.
+		$meta_query = array();
+
+		// Salary range filtering.
+		if ( ! empty( $_POST['salary_min'] ) && ! empty( $_POST['salary_max'] ) ) {
+			$meta_query[] = array(
+				'key'     => '_job_salary',
+				'value'   => array( absint( $_POST['salary_min'] ), absint( $_POST['salary_max'] ) ),
+				'type'    => 'NUMERIC',
+				'compare' => 'BETWEEN',
+			);
+		} elseif ( ! empty( $_POST['salary_min'] ) ) {
+			$meta_query[] = array(
+				'key'     => '_job_salary',
+				'value'   => absint( $_POST['salary_min'] ),
+				'type'    => 'NUMERIC',
+				'compare' => '>=',
+			);
+		} elseif ( ! empty( $_POST['salary_max'] ) ) {
+			$meta_query[] = array(
+				'key'     => '_job_salary',
+				'value'   => absint( $_POST['salary_max'] ),
+				'type'    => 'NUMERIC',
+				'compare' => '<=',
+			);
+		}
+
+		// Featured only filtering.
+		if ( ! empty( $_POST['featured_only'] ) && '1' === $_POST['featured_only'] ) {
+			$meta_query[] = array(
+				'key'   => '_job_is_featured',
+				'value' => '1',
+			);
+		}
+
+		if ( ! empty( $meta_query ) ) {
+			$meta_query['relation'] = 'AND';
+			$args['meta_query']     = $meta_query;
+		}
+
+		// Search query.
+		if ( ! empty( $_POST['s'] ) ) {
+			$args['s'] = sanitize_text_field( wp_unslash( $_POST['s'] ) );
+		}
+
+		// Execute query.
+		$query = new \WP_Query( $args );
+
+		// Start output buffering.
+		ob_start();
+
+		if ( $query->have_posts() ) :
+			?>
+			<div class="jobs-plug-results-info">
+				<?php
+				printf(
+					/* translators: %s: number of jobs found */
+					esc_html__( 'Showing %s jobs', 'jobs-plug' ),
+					'<strong>' . esc_html( $query->found_posts ) . '</strong>'
+				);
+				?>
+			</div>
+
+			<div class="jobs-plug-grid">
+				<?php
+				while ( $query->have_posts() ) :
+					$query->the_post();
+
+					// Get meta data.
+					$salary      = get_post_meta( get_the_ID(), '_job_salary', true );
+					$is_featured = get_post_meta( get_the_ID(), '_job_is_featured', true );
+					$expiry_date = get_post_meta( get_the_ID(), '_job_expiry_date', true );
+
+					// Check if job is expired.
+					$is_expired = false;
+					if ( ! empty( $expiry_date ) ) {
+						$expiry_timestamp = strtotime( $expiry_date );
+						$is_expired       = ( $expiry_timestamp && $expiry_timestamp < current_time( 'timestamp' ) );
+					}
+
+					// Get taxonomy terms.
+					$employers = get_the_terms( get_the_ID(), 'employer' );
+					$locations = get_the_terms( get_the_ID(), 'location' );
+					$job_types = get_the_terms( get_the_ID(), 'job_type' );
+
+					// Add expired class to card.
+					$card_classes = array( 'jobs-plug-card' );
+					if ( $is_featured ) {
+						$card_classes[] = 'jobs-plug-featured';
+					}
+					if ( $is_expired ) {
+						$card_classes[] = 'jobs-plug-card-expired';
+					}
+					?>
+
+					<article class="<?php echo esc_attr( implode( ' ', $card_classes ) ); ?>">
+
+						<?php if ( $is_expired ) : ?>
+							<div class="jobs-plug-badge-expired">
+								<span class="dashicons dashicons-warning"></span>
+								<?php esc_html_e( 'Expired', 'jobs-plug' ); ?>
+							</div>
+						<?php elseif ( $is_featured ) : ?>
+							<div class="jobs-plug-badge-featured">
+								<span class="dashicons dashicons-star-filled"></span>
+								<?php esc_html_e( 'Featured', 'jobs-plug' ); ?>
+							</div>
+						<?php endif; ?>
+
+						<?php if ( has_post_thumbnail() ) : ?>
+							<div class="jobs-plug-card-thumbnail">
+								<?php the_post_thumbnail( 'thumbnail' ); ?>
+							</div>
+						<?php endif; ?>
+
+						<div class="jobs-plug-card-content">
+							<h2 class="jobs-plug-card-title">
+								<a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
+							</h2>
+
+							<div class="jobs-plug-card-meta">
+								<?php if ( ! empty( $employers ) && ! is_wp_error( $employers ) ) : ?>
+									<div class="jobs-plug-meta-item">
+										<span class="dashicons dashicons-building"></span>
+										<span><?php echo esc_html( $employers[0]->name ); ?></span>
+									</div>
+								<?php endif; ?>
+
+								<?php if ( ! empty( $locations ) && ! is_wp_error( $locations ) ) : ?>
+									<div class="jobs-plug-meta-item">
+										<span class="dashicons dashicons-location"></span>
+										<span><?php echo esc_html( $locations[0]->name ); ?></span>
+									</div>
+								<?php endif; ?>
+
+								<?php if ( ! empty( $job_types ) && ! is_wp_error( $job_types ) ) : ?>
+									<div class="jobs-plug-meta-item jobs-plug-badge-type">
+										<?php echo esc_html( $job_types[0]->name ); ?>
+									</div>
+								<?php endif; ?>
+
+								<?php if ( ! empty( $salary ) ) : ?>
+									<div class="jobs-plug-meta-item jobs-plug-salary">
+										<span class="dashicons dashicons-money-alt"></span>
+										<span><?php echo esc_html( number_format_i18n( $salary ) ); ?></span>
+									</div>
+								<?php endif; ?>
+							</div>
+
+							<div class="jobs-plug-card-excerpt">
+								<?php echo wp_trim_words( get_the_excerpt(), 20, '...' ); ?>
+							</div>
+
+							<div class="jobs-plug-card-footer">
+								<?php if ( ! empty( $expiry_date ) ) : ?>
+									<div class="jobs-plug-expiry <?php echo $is_expired ? 'jobs-plug-expiry-expired' : ''; ?>">
+										<span class="dashicons dashicons-calendar-alt"></span>
+										<?php
+										if ( $is_expired ) {
+											printf(
+												/* translators: %s: expiry date */
+												esc_html__( 'Expired on: %s', 'jobs-plug' ),
+												esc_html( date_i18n( get_option( 'date_format' ), strtotime( $expiry_date ) ) )
+											);
+										} else {
+											printf(
+												/* translators: %s: expiry date */
+												esc_html__( 'Expires: %s', 'jobs-plug' ),
+												esc_html( date_i18n( get_option( 'date_format' ), strtotime( $expiry_date ) ) )
+											);
+										}
+										?>
+									</div>
+								<?php endif; ?>
+
+								<a href="<?php the_permalink(); ?>" class="jobs-plug-card-button">
+									<?php esc_html_e( 'View Job', 'jobs-plug' ); ?>
+									<span class="dashicons dashicons-arrow-right-alt2"></span>
+								</a>
+							</div>
+						</div>
+					</article>
+
+				<?php endwhile; ?>
+			</div>
+
+			<div class="jobs-plug-pagination">
+				<?php
+				$pagination = paginate_links(
+					array(
+						'total'     => $query->max_num_pages,
+						'current'   => max( 1, get_query_var( 'paged' ) ),
+						'format'    => '?paged=%#%',
+						'mid_size'  => 2,
+						'prev_text' => __( '&laquo; Previous', 'jobs-plug' ),
+						'next_text' => __( 'Next &raquo;', 'jobs-plug' ),
+						'type'      => 'plain',
+					)
+				);
+				echo $pagination ? '<nav class="nav-links">' . $pagination . '</nav>' : '';
+				?>
+			</div>
+
+		<?php else : ?>
+
+			<div class="jobs-plug-no-results">
+				<span class="dashicons dashicons-search"></span>
+				<h2><?php esc_html_e( 'No jobs found', 'jobs-plug' ); ?></h2>
+				<p><?php esc_html_e( 'Try adjusting your search or filters to find what you\'re looking for.', 'jobs-plug' ); ?></p>
+			</div>
+
+		<?php
+		endif;
+
+		wp_reset_postdata();
+
+		// Get the buffered output.
+		$html = ob_get_clean();
+
+		// Send JSON response.
+		wp_send_json_success( array( 'html' => $html ) );
 	}
 
 	/**

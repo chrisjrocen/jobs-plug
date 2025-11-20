@@ -13,80 +13,207 @@ get_header();
 
 		<!-- Search and Filter Section -->
 		<div class="jobs-plug-search-section">
-			<h1 class="jobs-plug-archive-title"><?php post_type_archive_title(); ?></h1>
+			<?php
+			// Generate appropriate heading based on archive type.
+			$archive_title = '';
+			if ( is_tax( 'location' ) ) {
+				$term          = get_queried_object();
+				$archive_title = sprintf(
+					/* translators: %s: location name */
+					__( 'Jobs in %s', 'jobs-plug' ),
+					$term->name
+				);
+			} elseif ( is_tax( 'employer' ) ) {
+				$term          = get_queried_object();
+				$archive_title = sprintf(
+					/* translators: %s: employer name */
+					__( 'Jobs at %s', 'jobs-plug' ),
+					$term->name
+				);
+			} elseif ( is_tax( 'job_category' ) ) {
+				$term          = get_queried_object();
+				$archive_title = sprintf(
+					/* translators: %s: category name */
+					__( '%s Jobs', 'jobs-plug' ),
+					$term->name
+				);
+			} elseif ( is_tax( 'job_type' ) ) {
+				$term          = get_queried_object();
+				$archive_title = sprintf(
+					/* translators: %s: job type name */
+					__( '%s Jobs', 'jobs-plug' ),
+					$term->name
+				);
+			} else {
+				$archive_title = __( 'All Jobs', 'jobs-plug' );
+			}
+			?>
+			<h1 class="jobs-plug-archive-title"><?php echo esc_html( $archive_title ); ?></h1>
 
-			<form method="get" class="jobs-plug-search-form" role="search">
+			<?php
+			// Get current filter values from GET parameters.
+			$current_search        = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
+			$current_category      = isset( $_GET['job_category'] ) ? sanitize_text_field( wp_unslash( $_GET['job_category'] ) ) : '';
+			$current_employer      = isset( $_GET['employer'] ) ? sanitize_text_field( wp_unslash( $_GET['employer'] ) ) : '';
+			$current_location      = isset( $_GET['location'] ) ? sanitize_text_field( wp_unslash( $_GET['location'] ) ) : '';
+			$current_job_type      = isset( $_GET['job_type'] ) ? sanitize_text_field( wp_unslash( $_GET['job_type'] ) ) : '';
+			$current_salary_min    = isset( $_GET['salary_min'] ) ? absint( $_GET['salary_min'] ) : '';
+			$current_salary_max    = isset( $_GET['salary_max'] ) ? absint( $_GET['salary_max'] ) : '';
+			$current_featured_only = isset( $_GET['featured_only'] ) && '1' === $_GET['featured_only'];
+
+			// Get taxonomies for filtering.
+			$job_categories = get_terms(
+				array(
+					'taxonomy'   => 'job_category',
+					'hide_empty' => true,
+				)
+			);
+			$employers      = get_terms(
+				array(
+					'taxonomy'   => 'employer',
+					'hide_empty' => true,
+				)
+			);
+			$locations      = get_terms(
+				array(
+					'taxonomy'   => 'location',
+					'hide_empty' => true,
+				)
+			);
+			$job_types      = get_terms(
+				array(
+					'taxonomy'   => 'job_type',
+					'hide_empty' => true,
+				)
+			);
+			?>
+
+			<form method="get" action="<?php echo esc_url( get_post_type_archive_link( 'job' ) ); ?>" class="jobs-plug-search-form" role="search">
+				<!-- Search Input -->
 				<div class="jobs-plug-search-wrapper">
 					<input
 						type="text"
 						name="s"
 						class="jobs-plug-search-input"
 						placeholder="<?php esc_attr_e( 'Search jobs by title or keyword...', 'jobs-plug' ); ?>"
-						value="<?php echo get_search_query(); ?>"
+						value="<?php echo esc_attr( $current_search ); ?>"
 					/>
 					<button type="submit" class="jobs-plug-search-button">
 						<span class="dashicons dashicons-search"></span>
 						<?php esc_html_e( 'Search Jobs', 'jobs-plug' ); ?>
 					</button>
 				</div>
+
+				<!-- Filters -->
+				<div class="jobs-plug-filters">
+					<!-- Category Filter -->
+					<?php if ( ! empty( $job_categories ) && ! is_wp_error( $job_categories ) ) : ?>
+						<div class="jobs-plug-filter">
+							<label for="job-category-filter"><?php esc_html_e( 'Category:', 'jobs-plug' ); ?></label>
+							<select name="job_category" id="job-category-filter">
+								<option value=""><?php esc_html_e( 'All Categories', 'jobs-plug' ); ?></option>
+								<?php foreach ( $job_categories as $category ) : ?>
+									<option value="<?php echo esc_attr( $category->slug ); ?>" <?php selected( $current_category, $category->slug ); ?>>
+										<?php echo esc_html( $category->name ); ?> (<?php echo esc_html( $category->count ); ?>)
+									</option>
+								<?php endforeach; ?>
+							</select>
+						</div>
+					<?php endif; ?>
+
+					<!-- Employer Filter -->
+					<?php if ( ! empty( $employers ) && ! is_wp_error( $employers ) ) : ?>
+						<div class="jobs-plug-filter">
+							<label for="employer-filter"><?php esc_html_e( 'Employer:', 'jobs-plug' ); ?></label>
+							<select name="employer" id="employer-filter">
+								<option value=""><?php esc_html_e( 'All Employers', 'jobs-plug' ); ?></option>
+								<?php foreach ( $employers as $employer ) : ?>
+									<option value="<?php echo esc_attr( $employer->slug ); ?>" <?php selected( $current_employer, $employer->slug ); ?>>
+										<?php echo esc_html( $employer->name ); ?> (<?php echo esc_html( $employer->count ); ?>)
+									</option>
+								<?php endforeach; ?>
+							</select>
+						</div>
+					<?php endif; ?>
+
+					<!-- Location Filter -->
+					<?php if ( ! empty( $locations ) && ! is_wp_error( $locations ) ) : ?>
+						<div class="jobs-plug-filter">
+							<label for="location-filter"><?php esc_html_e( 'Location:', 'jobs-plug' ); ?></label>
+							<select name="location" id="location-filter">
+								<option value=""><?php esc_html_e( 'All Locations', 'jobs-plug' ); ?></option>
+								<?php foreach ( $locations as $loc ) : ?>
+									<option value="<?php echo esc_attr( $loc->slug ); ?>" <?php selected( $current_location, $loc->slug ); ?>>
+										<?php echo esc_html( $loc->name ); ?> (<?php echo esc_html( $loc->count ); ?>)
+									</option>
+								<?php endforeach; ?>
+							</select>
+						</div>
+					<?php endif; ?>
+
+					<!-- Job Type Filter -->
+					<?php if ( ! empty( $job_types ) && ! is_wp_error( $job_types ) ) : ?>
+						<div class="jobs-plug-filter">
+							<label for="job-type-filter"><?php esc_html_e( 'Job Type:', 'jobs-plug' ); ?></label>
+							<select name="job_type" id="job-type-filter">
+								<option value=""><?php esc_html_e( 'All Types', 'jobs-plug' ); ?></option>
+								<?php foreach ( $job_types as $type ) : ?>
+									<option value="<?php echo esc_attr( $type->slug ); ?>" <?php selected( $current_job_type, $type->slug ); ?>>
+										<?php echo esc_html( $type->name ); ?> (<?php echo esc_html( $type->count ); ?>)
+									</option>
+								<?php endforeach; ?>
+							</select>
+						</div>
+					<?php endif; ?>
+
+					<!-- Salary Range Filters -->
+					<div class="jobs-plug-filter jobs-plug-filter-salary">
+						<label for="salary-min-filter"><?php esc_html_e( 'Salary Range:', 'jobs-plug' ); ?></label>
+						<div class="jobs-plug-salary-inputs">
+							<input
+								type="number"
+								name="salary_min"
+								id="salary-min-filter"
+								placeholder="<?php esc_attr_e( 'Min', 'jobs-plug' ); ?>"
+								value="<?php echo esc_attr( $current_salary_min ); ?>"
+								min="0"
+								step="1000000"
+							/>
+							<span class="jobs-plug-salary-separator">-</span>
+							<input
+								type="number"
+								name="salary_max"
+								id="salary-max-filter"
+								placeholder="<?php esc_attr_e( 'Max', 'jobs-plug' ); ?>"
+								value="<?php echo esc_attr( $current_salary_max ); ?>"
+								min="0"
+								step="1000000"
+							/>
+						</div>
+					</div>
+
+					<!-- Featured Only Checkbox -->
+					<div class="jobs-plug-filter jobs-plug-filter-checkbox">
+						<label for="featured-only-filter">
+							<input
+								type="checkbox"
+								name="featured_only"
+								id="featured-only-filter"
+								value="1"
+								<?php checked( $current_featured_only, true ); ?>
+							/>
+							<?php esc_html_e( 'Featured jobs only', 'jobs-plug' ); ?>
+						</label>
+					</div>
+
+					<!-- Reset Filters Button -->
+					<div class="jobs-plug-filter jobs-plug-filter-actions">
+						<a href="<?php echo esc_url( get_post_type_archive_link( 'job' ) ); ?>" class="jobs-plug-reset-button">
+							<?php esc_html_e( 'Reset Filters', 'jobs-plug' ); ?>
+						</a>
+					</div>
+				</div>
 			</form>
-
-			<div class="jobs-plug-filters">
-				<?php
-				// Get taxonomies for filtering.
-				$job_categories = get_terms( array( 'taxonomy' => 'job_category', 'hide_empty' => true ) );
-				$locations      = get_terms( array( 'taxonomy' => 'location', 'hide_empty' => true ) );
-				$job_types      = get_terms( array( 'taxonomy' => 'job_type', 'hide_empty' => true ) );
-				?>
-
-				<?php if ( ! empty( $job_categories ) && ! is_wp_error( $job_categories ) ) : ?>
-					<div class="jobs-plug-filter">
-						<label for="job-category-filter"><?php esc_html_e( 'Category:', 'jobs-plug' ); ?></label>
-						<select id="job-category-filter" onchange="location = this.value;">
-							<option value="<?php echo esc_url( get_post_type_archive_link( 'job' ) ); ?>">
-								<?php esc_html_e( 'All Categories', 'jobs-plug' ); ?>
-							</option>
-							<?php foreach ( $job_categories as $category ) : ?>
-								<option value="<?php echo esc_url( get_term_link( $category ) ); ?>">
-									<?php echo esc_html( $category->name ); ?> (<?php echo esc_html( $category->count ); ?>)
-								</option>
-							<?php endforeach; ?>
-						</select>
-					</div>
-				<?php endif; ?>
-
-				<?php if ( ! empty( $locations ) && ! is_wp_error( $locations ) ) : ?>
-					<div class="jobs-plug-filter">
-						<label for="location-filter"><?php esc_html_e( 'Location:', 'jobs-plug' ); ?></label>
-						<select id="location-filter" onchange="location = this.value;">
-							<option value="<?php echo esc_url( get_post_type_archive_link( 'job' ) ); ?>">
-								<?php esc_html_e( 'All Locations', 'jobs-plug' ); ?>
-							</option>
-							<?php foreach ( $locations as $loc ) : ?>
-								<option value="<?php echo esc_url( get_term_link( $loc ) ); ?>">
-									<?php echo esc_html( $loc->name ); ?> (<?php echo esc_html( $loc->count ); ?>)
-								</option>
-							<?php endforeach; ?>
-						</select>
-					</div>
-				<?php endif; ?>
-
-				<?php if ( ! empty( $job_types ) && ! is_wp_error( $job_types ) ) : ?>
-					<div class="jobs-plug-filter">
-						<label for="job-type-filter"><?php esc_html_e( 'Job Type:', 'jobs-plug' ); ?></label>
-						<select id="job-type-filter" onchange="location = this.value;">
-							<option value="<?php echo esc_url( get_post_type_archive_link( 'job' ) ); ?>">
-								<?php esc_html_e( 'All Types', 'jobs-plug' ); ?>
-							</option>
-							<?php foreach ( $job_types as $type ) : ?>
-								<option value="<?php echo esc_url( get_term_link( $type ) ); ?>">
-									<?php echo esc_html( $type->name ); ?> (<?php echo esc_html( $type->count ); ?>)
-								</option>
-							<?php endforeach; ?>
-						</select>
-					</div>
-				<?php endif; ?>
-			</div>
 		</div>
 
 		<!-- Jobs Listing -->
@@ -122,9 +249,9 @@ get_header();
 						}
 
 						// Get taxonomy terms.
-						$employers  = get_the_terms( get_the_ID(), 'employer' );
-						$locations  = get_the_terms( get_the_ID(), 'location' );
-						$job_types  = get_the_terms( get_the_ID(), 'job_type' );
+						$employers = get_the_terms( get_the_ID(), 'employer' );
+						$locations = get_the_terms( get_the_ID(), 'location' );
+						$job_types = get_the_terms( get_the_ID(), 'job_type' );
 
 						// Add expired class to card.
 						$card_classes = array( 'jobs-plug-card' );
