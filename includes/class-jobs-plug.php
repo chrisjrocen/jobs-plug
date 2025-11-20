@@ -65,6 +65,9 @@ class Jobs_Plug {
 		// Add schema markup.
 		add_action( 'wp_head', array( $this, 'output_job_schema_markup' ), 10 );
 
+		// Set job archive as homepage.
+		add_action( 'pre_get_posts', array( $this, 'set_job_archive_as_homepage' ), 5 );
+
 		// Filter job archives based on GET parameters.
 		add_action( 'pre_get_posts', array( $this, 'filter_job_archives' ) );
 
@@ -1118,16 +1121,134 @@ class Jobs_Plug {
 	}
 
 	/**
+	 * Set job archive as homepage.
+	 *
+	 * @param WP_Query $query The WordPress query object.
+	 */
+	public function set_job_archive_as_homepage( $query ) {
+		// Only proceed if this is the main query and the home page.
+		if ( ! $query->is_main_query() || ! $query->is_home() ) {
+			return;
+		}
+
+		// Check if setting is enabled.
+		$set_as_homepage = get_option( 'jobs_plug_set_as_homepage', true );
+		if ( ! $set_as_homepage ) {
+			return;
+		}
+
+		// Set query to show job post type.
+		$query->set( 'post_type', 'job' );
+		$query->is_home     = false;
+		$query->is_archive  = true;
+		$query->is_post_type_archive = true;
+	}
+
+	/**
 	 * Admin initialization.
 	 */
 	public function admin_init() {
-		// Admin-specific initialization code here.
+		// Register settings.
+		register_setting(
+			'jobs_plug_settings',
+			'jobs_plug_set_as_homepage',
+			array(
+				'type'              => 'boolean',
+				'default'           => true,
+				'sanitize_callback' => 'rest_sanitize_boolean',
+			)
+		);
+
+		// Add settings section.
+		add_settings_section(
+			'jobs_plug_general_section',
+			__( 'General Settings', 'jobs-plug' ),
+			array( $this, 'render_settings_section' ),
+			'jobs-plug-settings'
+		);
+
+		// Add setting field.
+		add_settings_field(
+			'jobs_plug_set_as_homepage',
+			__( 'Set as Homepage', 'jobs-plug' ),
+			array( $this, 'render_homepage_setting_field' ),
+			'jobs-plug-settings',
+			'jobs_plug_general_section'
+		);
 	}
 
 	/**
 	 * Register admin menu.
 	 */
 	public function admin_menu() {
-		// Admin menu registration code here.
+		add_options_page(
+			__( 'Jobs Plug Settings', 'jobs-plug' ),
+			__( 'Jobs Plug', 'jobs-plug' ),
+			'manage_options',
+			'jobs-plug-settings',
+			array( $this, 'render_settings_page' )
+		);
+	}
+
+	/**
+	 * Render settings page.
+	 */
+	public function render_settings_page() {
+		// Check user capabilities.
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		// Display success message if settings were saved.
+		if ( isset( $_GET['settings-updated'] ) ) {
+			add_settings_error(
+				'jobs_plug_messages',
+				'jobs_plug_message',
+				__( 'Settings Saved', 'jobs-plug' ),
+				'updated'
+			);
+		}
+
+		settings_errors( 'jobs_plug_messages' );
+		?>
+		<div class="wrap">
+			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
+			<form action="options.php" method="post">
+				<?php
+				settings_fields( 'jobs_plug_settings' );
+				do_settings_sections( 'jobs-plug-settings' );
+				submit_button( __( 'Save Settings', 'jobs-plug' ) );
+				?>
+			</form>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render settings section description.
+	 */
+	public function render_settings_section() {
+		echo '<p>' . esc_html__( 'Configure the general settings for Jobs Plug.', 'jobs-plug' ) . '</p>';
+	}
+
+	/**
+	 * Render homepage setting field.
+	 */
+	public function render_homepage_setting_field() {
+		$value = get_option( 'jobs_plug_set_as_homepage', true );
+		?>
+		<label>
+			<input
+				type="checkbox"
+				name="jobs_plug_set_as_homepage"
+				value="1"
+				<?php checked( $value, true ); ?>
+			/>
+			<?php esc_html_e( 'Display the job archive as the site homepage', 'jobs-plug' ); ?>
+		</label>
+		<p class="description">
+			<?php esc_html_e( 'When enabled, the job listings will be shown on your homepage instead of your regular posts or pages.', 'jobs-plug' ); ?>
+		</p>
+		<?php
 	}
 }
