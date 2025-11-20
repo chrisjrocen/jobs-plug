@@ -60,6 +60,8 @@ class Jobs_Plug {
 		if ( is_admin() ) {
 			add_action( 'admin_init', array( $this, 'admin_init' ) );
 			add_action( 'admin_menu', array( $this, 'admin_menu' ) );
+			add_action( 'add_meta_boxes', array( $this, 'add_job_meta_boxes' ) );
+			add_action( 'save_post_job', array( $this, 'save_job_meta_boxes' ), 10, 2 );
 		}
 	}
 
@@ -279,6 +281,175 @@ class Jobs_Plug {
 		);
 
 		register_taxonomy( 'job_type', array( 'job' ), $args );
+	}
+
+	/**
+	 * Add custom meta boxes for the Job post type.
+	 */
+	public function add_job_meta_boxes() {
+		add_meta_box(
+			'job_details',
+			__( 'Job Details', 'jobs-plug' ),
+			array( $this, 'render_job_details_meta_box' ),
+			'job',
+			'normal',
+			'high'
+		);
+	}
+
+	/**
+	 * Render the Job Details meta box.
+	 *
+	 * @param \WP_Post $post The post object.
+	 */
+	public function render_job_details_meta_box( $post ) {
+		// Add nonce for security.
+		wp_nonce_field( 'job_details_meta_box', 'job_details_nonce' );
+
+		// Get existing values.
+		$application_method = get_post_meta( $post->ID, '_job_application_method', true );
+		$expiry_date        = get_post_meta( $post->ID, '_job_expiry_date', true );
+		$salary             = get_post_meta( $post->ID, '_job_salary', true );
+		$is_featured        = get_post_meta( $post->ID, '_job_is_featured', true );
+
+		?>
+		<table class="form-table">
+			<tr>
+				<th scope="row">
+					<label for="job_application_method"><?php esc_html_e( 'Application Method', 'jobs-plug' ); ?></label>
+				</th>
+				<td>
+					<textarea
+						id="job_application_method"
+						name="job_application_method"
+						rows="4"
+						class="large-text"
+						placeholder="<?php esc_attr_e( 'Enter how applicants can apply (email, URL, instructions, etc.)', 'jobs-plug' ); ?>"
+					><?php echo esc_textarea( $application_method ); ?></textarea>
+					<p class="description">
+						<?php esc_html_e( 'Provide instructions for how candidates can apply for this job.', 'jobs-plug' ); ?>
+					</p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row">
+					<label for="job_expiry_date"><?php esc_html_e( 'Expiry Date', 'jobs-plug' ); ?></label>
+				</th>
+				<td>
+					<input
+						type="date"
+						id="job_expiry_date"
+						name="job_expiry_date"
+						value="<?php echo esc_attr( $expiry_date ); ?>"
+						class="regular-text"
+					/>
+					<p class="description">
+						<?php esc_html_e( 'The date when this job posting expires.', 'jobs-plug' ); ?>
+					</p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row">
+					<label for="job_salary"><?php esc_html_e( 'Salary', 'jobs-plug' ); ?></label>
+				</th>
+				<td>
+					<input
+						type="number"
+						id="job_salary"
+						name="job_salary"
+						value="<?php echo esc_attr( $salary ); ?>"
+						class="regular-text"
+						min="0"
+						step="0.01"
+						placeholder="<?php esc_attr_e( 'Enter salary amount', 'jobs-plug' ); ?>"
+					/>
+					<p class="description">
+						<?php esc_html_e( 'Annual salary or compensation for this position.', 'jobs-plug' ); ?>
+					</p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row">
+					<label for="job_is_featured"><?php esc_html_e( 'Featured Job', 'jobs-plug' ); ?></label>
+				</th>
+				<td>
+					<label for="job_is_featured">
+						<input
+							type="checkbox"
+							id="job_is_featured"
+							name="job_is_featured"
+							value="1"
+							<?php checked( $is_featured, '1' ); ?>
+						/>
+						<?php esc_html_e( 'Mark this job as featured', 'jobs-plug' ); ?>
+					</label>
+					<p class="description">
+						<?php esc_html_e( 'Featured jobs may be highlighted on your site.', 'jobs-plug' ); ?>
+					</p>
+				</td>
+			</tr>
+		</table>
+		<?php
+	}
+
+	/**
+	 * Save the Job Details meta box data.
+	 *
+	 * @param int      $post_id The post ID.
+	 * @param \WP_Post $post    The post object.
+	 */
+	public function save_job_meta_boxes( $post_id, $post ) {
+		// Verify nonce.
+		if ( ! isset( $_POST['job_details_nonce'] ) || ! wp_verify_nonce( $_POST['job_details_nonce'], 'job_details_meta_box' ) ) {
+			return;
+		}
+
+		// Check autosave.
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+
+		// Check permissions.
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+
+		// Save Application Method.
+		if ( isset( $_POST['job_application_method'] ) ) {
+			$application_method = sanitize_textarea_field( wp_unslash( $_POST['job_application_method'] ) );
+			update_post_meta( $post_id, '_job_application_method', $application_method );
+		} else {
+			delete_post_meta( $post_id, '_job_application_method' );
+		}
+
+		// Save Expiry Date.
+		if ( isset( $_POST['job_expiry_date'] ) && ! empty( $_POST['job_expiry_date'] ) ) {
+			$expiry_date = sanitize_text_field( wp_unslash( $_POST['job_expiry_date'] ) );
+			// Validate date format.
+			if ( preg_match( '/^\d{4}-\d{2}-\d{2}$/', $expiry_date ) ) {
+				update_post_meta( $post_id, '_job_expiry_date', $expiry_date );
+			}
+		} else {
+			delete_post_meta( $post_id, '_job_expiry_date' );
+		}
+
+		// Save Salary.
+		if ( isset( $_POST['job_salary'] ) && ! empty( $_POST['job_salary'] ) ) {
+			$salary = sanitize_text_field( wp_unslash( $_POST['job_salary'] ) );
+			// Validate numeric value.
+			if ( is_numeric( $salary ) && $salary >= 0 ) {
+				update_post_meta( $post_id, '_job_salary', $salary );
+			}
+		} else {
+			delete_post_meta( $post_id, '_job_salary' );
+		}
+
+		// Save Featured checkbox.
+		if ( isset( $_POST['job_is_featured'] ) && '1' === $_POST['job_is_featured'] ) {
+			update_post_meta( $post_id, '_job_is_featured', '1' );
+		} else {
+			delete_post_meta( $post_id, '_job_is_featured' );
+		}
 	}
 
 	/**
