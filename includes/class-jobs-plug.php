@@ -62,6 +62,9 @@ class Jobs_Plug {
 		// Enqueue scripts and styles.
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
 
+		// Add schema markup.
+		add_action( 'wp_head', array( $this, 'output_job_schema_markup' ), 10 );
+
 		// Admin hooks.
 		if ( is_admin() ) {
 			add_action( 'admin_init', array( $this, 'admin_init' ) );
@@ -127,6 +130,133 @@ class Jobs_Plug {
 			// Enqueue dashicons for icons.
 			wp_enqueue_style( 'dashicons' );
 		}
+	}
+
+	/**
+	 * Output JobPosting schema markup in JSON-LD format.
+	 */
+	public function output_job_schema_markup() {
+		// Only output on single job pages.
+		if ( ! is_singular( 'job' ) ) {
+			return;
+		}
+
+		global $post;
+
+		// Get meta data.
+		$application_method = get_post_meta( $post->ID, '_job_application_method', true );
+		$expiry_date        = get_post_meta( $post->ID, '_job_expiry_date', true );
+		$salary             = get_post_meta( $post->ID, '_job_salary', true );
+
+		// Get taxonomy terms.
+		$employers  = get_the_terms( $post->ID, 'employer' );
+		$locations  = get_the_terms( $post->ID, 'location' );
+		$job_types  = get_the_terms( $post->ID, 'job_type' );
+
+		// Build schema data.
+		$schema = array(
+			'@context'     => 'https://schema.org',
+			'@type'        => 'JobPosting',
+			'title'        => get_the_title( $post->ID ),
+			'description'  => wp_strip_all_tags( get_post_field( 'post_content', $post->ID ) ),
+			'datePosted'   => get_the_date( 'c', $post->ID ),
+			'url'          => get_permalink( $post->ID ),
+		);
+
+		// Add hiring organization.
+		if ( ! empty( $employers ) && ! is_wp_error( $employers ) ) {
+			$schema['hiringOrganization'] = array(
+				'@type' => 'Organization',
+				'name'  => $employers[0]->name,
+			);
+		} else {
+			// Fallback to site name.
+			$schema['hiringOrganization'] = array(
+				'@type' => 'Organization',
+				'name'  => get_bloginfo( 'name' ),
+			);
+		}
+
+		// Add job location.
+		if ( ! empty( $locations ) && ! is_wp_error( $locations ) ) {
+			$schema['jobLocation'] = array(
+				'@type'   => 'Place',
+				'address' => array(
+					'@type'           => 'PostalAddress',
+					'addressLocality' => $locations[0]->name,
+				),
+			);
+		}
+
+		// Add expiry date (validThrough).
+		if ( ! empty( $expiry_date ) ) {
+			// Convert to ISO 8601 format.
+			$expiry_timestamp = strtotime( $expiry_date );
+			if ( $expiry_timestamp ) {
+				$schema['validThrough'] = date( 'c', $expiry_timestamp );
+			}
+		}
+
+		// Add employment type.
+		if ( ! empty( $job_types ) && ! is_wp_error( $job_types ) ) {
+			// Map common job types to schema.org employment types.
+			$employment_type_map = array(
+				'full-time'  => 'FULL_TIME',
+				'full time'  => 'FULL_TIME',
+				'fulltime'   => 'FULL_TIME',
+				'part-time'  => 'PART_TIME',
+				'part time'  => 'PART_TIME',
+				'parttime'   => 'PART_TIME',
+				'contract'   => 'CONTRACTOR',
+				'contractor' => 'CONTRACTOR',
+				'temporary'  => 'TEMPORARY',
+				'temp'       => 'TEMPORARY',
+				'intern'     => 'INTERN',
+				'internship' => 'INTERN',
+				'volunteer'  => 'VOLUNTEER',
+				'per diem'   => 'PER_DIEM',
+				'other'      => 'OTHER',
+			);
+
+			$job_type_slug = strtolower( $job_types[0]->slug );
+			if ( isset( $employment_type_map[ $job_type_slug ] ) ) {
+				$schema['employmentType'] = $employment_type_map[ $job_type_slug ];
+			}
+		}
+
+		// Add salary (baseSalary).
+		if ( ! empty( $salary ) && is_numeric( $salary ) ) {
+			$schema['baseSalary'] = array(
+				'@type'    => 'MonetaryAmount',
+				'currency' => 'UGX', // Uganda Shillings - adjust as needed.
+				'value'    => array(
+					'@type'    => 'QuantitativeValue',
+					'value'    => $salary,
+					'unitText' => 'YEAR',
+				),
+			);
+		}
+
+		// Add identifier.
+		$schema['identifier'] = array(
+			'@type' => 'PropertyValue',
+			'name'  => get_bloginfo( 'name' ),
+			'value' => $post->ID,
+		);
+
+		/**
+		 * Filter the JobPosting schema markup.
+		 *
+		 * @param array   $schema The schema data array.
+		 * @param WP_Post $post   The current post object.
+		 */
+		$schema = apply_filters( 'jobs_plug_schema_markup', $schema, $post );
+
+		// Output the JSON-LD script.
+		echo "\n<!-- JobPosting Schema Markup by Jobs Plug -->\n";
+		echo '<script type="application/ld+json">' . "\n";
+		echo wp_json_encode( $schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+		echo "\n</script>\n";
 	}
 
 	/**
