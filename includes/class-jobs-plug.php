@@ -199,10 +199,6 @@ class Jobs_Plug {
 			return;
 		}
 
-		// Debug: Log that we're filtering (can be removed later).
-		// error_log( 'Jobs Plug: Filtering job archives with GET params: ' . print_r( $_GET, true ) );
-
-
 		// Get existing tax query if any.
 		$tax_query = $query->get( 'tax_query' );
 		if ( ! is_array( $tax_query ) ) {
@@ -296,7 +292,7 @@ class Jobs_Plug {
 		}
 
 		// Exclude expired jobs.
-		$today = current_time( 'Y-m-d' );
+		$today        = current_time( 'Y-m-d' );
 		$meta_query[] = array(
 			'relation' => 'OR',
 			array(
@@ -408,7 +404,7 @@ class Jobs_Plug {
 		}
 
 		// Exclude expired jobs.
-		$today = current_time( 'Y-m-d' );
+		$today        = current_time( 'Y-m-d' );
 		$meta_query[] = array(
 			'relation' => 'OR',
 			array(
@@ -599,7 +595,7 @@ class Jobs_Plug {
 				<p><?php esc_html_e( 'Try adjusting your search or filters to find what you\'re looking for.', 'jobs-plug' ); ?></p>
 			</div>
 
-		<?php
+			<?php
 		endif;
 
 		wp_reset_postdata();
@@ -628,18 +624,18 @@ class Jobs_Plug {
 		$salary             = get_post_meta( $post->ID, '_job_salary', true );
 
 		// Get taxonomy terms.
-		$employers  = get_the_terms( $post->ID, 'employer' );
-		$locations  = get_the_terms( $post->ID, 'location' );
-		$job_types  = get_the_terms( $post->ID, 'job_type' );
+		$employers = get_the_terms( $post->ID, 'employer' );
+		$locations = get_the_terms( $post->ID, 'location' );
+		$job_types = get_the_terms( $post->ID, 'job_type' );
 
 		// Build schema data.
 		$schema = array(
-			'@context'     => 'https://schema.org',
-			'@type'        => 'JobPosting',
-			'title'        => get_the_title( $post->ID ),
-			'description'  => wp_strip_all_tags( get_post_field( 'post_content', $post->ID ) ),
-			'datePosted'   => get_the_date( 'c', $post->ID ),
-			'url'          => get_permalink( $post->ID ),
+			'@context'    => 'https://schema.org',
+			'@type'       => 'JobPosting',
+			'title'       => get_the_title( $post->ID ),
+			'description' => wp_strip_all_tags( get_post_field( 'post_content', $post->ID ) ),
+			'datePosted'  => get_the_date( 'c', $post->ID ),
+			'url'         => get_permalink( $post->ID ),
 		);
 
 		// Add hiring organization.
@@ -978,15 +974,25 @@ class Jobs_Plug {
 					<label for="job_application_method"><?php esc_html_e( 'Application Method', 'jobs-plug' ); ?></label>
 				</th>
 				<td>
-					<textarea
-						id="job_application_method"
-						name="job_application_method"
-						rows="4"
-						class="large-text"
-						placeholder="<?php esc_attr_e( 'Enter how applicants can apply (email, URL, instructions, etc.)', 'jobs-plug' ); ?>"
-					><?php echo esc_textarea( $application_method ); ?></textarea>
+					<?php
+					wp_editor(
+						$application_method,
+						'job_application_method',
+						array(
+							'textarea_name' => 'job_application_method',
+							'textarea_rows' => 8,
+							'media_buttons' => false,
+							'teeny'         => false,
+							'quicktags'     => true,
+							'tinymce'       => array(
+								'toolbar1' => 'formatselect,bold,italic,bullist,numlist,link,unlink,undo,redo',
+								'toolbar2' => '',
+							),
+						)
+					);
+					?>
 					<p class="description">
-						<?php esc_html_e( 'Provide instructions for how candidates can apply for this job.', 'jobs-plug' ); ?>
+						<?php esc_html_e( 'Provide instructions for how candidates can apply for this job. You can use formatting, lists, and links.', 'jobs-plug' ); ?>
 					</p>
 				</td>
 			</tr>
@@ -1075,7 +1081,7 @@ class Jobs_Plug {
 
 		// Save Application Method.
 		if ( isset( $_POST['job_application_method'] ) ) {
-			$application_method = sanitize_textarea_field( wp_unslash( $_POST['job_application_method'] ) );
+			$application_method = wp_kses_post( wp_unslash( $_POST['job_application_method'] ) );
 			update_post_meta( $post_id, '_job_application_method', $application_method );
 		} else {
 			delete_post_meta( $post_id, '_job_application_method' );
