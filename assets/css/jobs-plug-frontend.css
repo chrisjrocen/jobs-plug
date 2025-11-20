@@ -23,7 +23,7 @@
 
 /* Search Section */
 .jobs-plug-search-section {
-	background: #fff;
+	background: var(--theme-palette-color-8, #ffffff);
 	padding: 30px;
 	margin-bottom: 30px;
 	border-radius: 8px;
@@ -37,7 +37,9 @@
 }
 
 .jobs-plug-search-form {
-	margin-bottom: 20px;
+	display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
 .jobs-plug-search-wrapper {
@@ -45,17 +47,18 @@
 	gap: 10px;
 }
 
-.jobs-plug-search-input {
+.jobs-plug-search-wrapper input.jobs-plug-search-input {
 	flex: 1;
 	padding: 12px 15px;
 	border: 1px solid #ddd;
 	border-radius: 4px;
 	font-size: 16px;
+	border-radius: var(--theme-button-border-radius, 3px);
 }
 
 .jobs-plug-search-button {
-	background: #00a7ac;
-	color: #fff;
+	background: var(--theme-palette-color-2, #1559ed);
+	color: var(--theme-palette-color-8, #ffffff);
 	border: none;
 	padding: 12px 30px;
 	border-radius: 4px;
@@ -88,9 +91,12 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
+    align-items: flex-start;
+    flex-direction: column;
 }
 
 .jobs-plug-filter label {
+	display: none;
 	font-weight: 600;
 	color: #2c2c34;
 }
@@ -124,7 +130,7 @@
 }
 
 .jobs-plug-salary-separator {
-	color: #666;
+	color: var(--theme-palette-color-3, #3A4F66);
 }
 
 /* Checkbox Filter */
@@ -176,7 +182,7 @@
 .jobs-plug-results-info {
 	margin-bottom: 20px;
 	font-size: 16px;
-	color: #666;
+	color: var(--theme-palette-color-3, #3A4F66);
 }
 
 /* Job Grid */
@@ -189,7 +195,7 @@
 
 /* Job Card */
 .jobs-plug-card {
-	background: #fff;
+	background: var(--theme-palette-color-8, #ffffff);
 	border-radius: 8px;
 	padding: 20px;
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -205,7 +211,7 @@
 }
 
 .jobs-plug-card.jobs-plug-featured {
-	border: 2px solid #00a7ac;
+	border: 2px solid var(--theme-palette-color-2, #1559ed);
 }
 
 .jobs-plug-card.jobs-plug-card-expired {
@@ -217,8 +223,8 @@
 	position: absolute;
 	top: 10px;
 	right: 10px;
-	background: #00a7ac;
-	color: #fff;
+	background: var(--theme-palette-color-2, #1559ed);
+	color: var(--theme-palette-color-8, #ffffff);
 	padding: 5px 12px;
 	border-radius: 4px;
 	font-size: 12px;
@@ -240,7 +246,7 @@
 	top: 10px;
 	right: 10px;
 	background: #d32f2f;
-	color: #fff;
+	color: var(--theme-palette-color-8, #ffffff);
 	padding: 5px 12px;
 	border-radius: 4px;
 	font-size: 12px;
@@ -286,7 +292,7 @@
 }
 
 .jobs-plug-card-title a:hover {
-	color: #00a7ac;
+	color: var(--theme-palette-color-2, #1559ed);
 }
 
 .jobs-plug-card-meta {
@@ -301,14 +307,14 @@
 	display: flex;
 	align-items: center;
 	gap: 5px;
-	color: #666;
+	color: var(--theme-palette-color-3, #3A4F66);
 }
 
 .jobs-plug-meta-item .dashicons {
 	width: 18px;
 	height: 18px;
 	font-size: 18px;
-	color: #00a7ac;
+	color: var(--theme-palette-color-2, #1559ed);
 }
 
 .jobs-plug-badge-type {
@@ -326,7 +332,7 @@
 }
 
 .jobs-plug-card-excerpt {
-	color: #666;
+	color: var(--theme-palette-color-3, #3A4F66);
 	line-height: 1.6;
 	margin-bottom: 15px;
 	flex: 1;
@@ -343,7 +349,7 @@
 
 .jobs-plug-expiry {
 	font-size: 13px;
-	color: #999;
+	color: var(--theme-palette-color-3, #3A4F66);
 	display: flex;
 	align-items: center;
 	gap: 5px;
@@ -361,8 +367,8 @@
 }
 
 .jobs-plug-card-button {
-	background: #00a7ac;
-	color: #fff;
+	background: var(--theme-palette-color-1, #2872fa);
+	color: var(--theme-palette-color-8, var(--theme-palette-color-8, #ffffff)fff);
 	padding: 8px 20px;
 	border-radius: 4px;
 	text-decoration: none;
@@ -375,7 +381,8 @@
 }
 
 .jobs-plug-card-button:hover {
-	background: #008b8f;
+	background: var(--theme-palette-color-2, #1559ed);
+	color: var(--theme-palette-color-8, var(--theme-palette-color-8, #ffffff)fff);
 }
 
 .jobs-plug-card-button .dashicons {
@@ -400,7 +407,7 @@
 .jobs-plug-pagination a,
 .jobs-plug-pagination .current {
 	padding: 10px 15px;
-	background: #fff;
+	background: var(--theme-palette-color-8, #ffffff);
 	border: 1px solid #ddd;
 	border-radius: 4px;
 	text-decoration: none;
@@ -410,14 +417,14 @@
 
 .jobs-plug-pagination a:hover,
 .jobs-plug-pagination .current {
-	background: #00a7ac;
-	color: #fff;
-	border-color: #00a7ac;
+	background: var(--theme-palette-color-2, #1559ed);
+	color: var(--theme-palette-color-8, #ffffff);
+	border-color: var(--theme-palette-color-2, #1559ed);
 }
 
 /* No Results */
 .jobs-plug-no-results {
-	background: #fff;
+	background: var(--theme-palette-color-8, #ffffff);
 	padding: 60px 30px;
 	text-align: center;
 	border-radius: 8px;
@@ -438,7 +445,7 @@
 }
 
 .jobs-plug-no-results p {
-	color: #666;
+	color: var(--theme-palette-color-3, #3A4F66);
 }
 
 /* ============================================
@@ -452,7 +459,7 @@
 }
 
 .jobs-plug-single-header {
-	background: #fff;
+	background: var(--theme-palette-color-8, #ffffff);
 	padding: 30px;
 	margin-bottom: 30px;
 	border-radius: 8px;
@@ -479,6 +486,7 @@
 	padding: 10px;
 	background: #f9f9f9;
 	border-radius: 4px;
+	flex-wrap: wrap;
 }
 
 .jobs-plug-single-meta .jobs-plug-meta-item strong {
@@ -499,7 +507,7 @@
 
 /* Main Content */
 .jobs-plug-single-main {
-	background: #fff;
+	background: var(--theme-palette-color-8, #ffffff);
 	padding: 30px;
 	border-radius: 8px;
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -517,7 +525,7 @@
 
 /* Expired Banner */
 .jobs-plug-expired-banner {
-	background: #fff3e0;
+	background: var(--theme-palette-color-8, #ffffff)3e0;
 	border-left: 4px solid #d32f2f;
 	padding: 20px;
 	margin-bottom: 30px;
@@ -549,7 +557,7 @@
 }
 
 .jobs-plug-expired-banner-content p {
-	color: #666;
+	color: var(--theme-palette-color-3, #3A4F66);
 	margin: 0;
 	line-height: 1.6;
 }
@@ -559,12 +567,12 @@
 	margin-top: 0;
 	margin-bottom: 20px;
 	padding-bottom: 10px;
-	border-bottom: 2px solid #00a7ac;
+	border-bottom: 2px solid var(--theme-palette-color-2, #1559ed);
 }
 
 .jobs-plug-single-content p {
 	line-height: 1.8;
-	color: #666;
+	color: var(--theme-palette-color-3, #3A4F66);
 	margin-bottom: 15px;
 }
 
@@ -572,7 +580,7 @@
 	margin-top: 30px;
 	padding: 20px;
 	background: #f9f9f9;
-	border-left: 4px solid #00a7ac;
+	border-left: 4px solid var(--theme-palette-color-2, #1559ed);
 	border-radius: 4px;
 }
 
@@ -582,7 +590,7 @@
 }
 
 .jobs-plug-application-content {
-	color: #666;
+	color: var(--theme-palette-color-3, #3A4F66);
 	line-height: 1.8;
 }
 
@@ -593,7 +601,7 @@
 }
 
 .jobs-plug-single-categories a {
-	color: #00a7ac;
+	color: var(--theme-palette-color-2, #1559ed);
 	text-decoration: none;
 }
 
@@ -609,7 +617,7 @@
 }
 
 .jobs-plug-sidebar-box {
-	background: #fff;
+	background: var(--theme-palette-color-8, #ffffff);
 	padding: 25px;
 	border-radius: 8px;
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -622,13 +630,13 @@
 }
 
 .jobs-plug-apply-box {
-	border-top: 4px solid #00a7ac;
+	border-top: 4px solid var(--theme-palette-color-2, #1559ed);
 }
 
 .jobs-plug-apply-button {
 	display: block;
-	background: #00a7ac;
-	color: #fff;
+	background: var(--theme-palette-color-2, #1559ed);
+	color: var(--theme-palette-color-8, #ffffff);
 	text-align: center;
 	padding: 15px;
 	border-radius: 4px;
@@ -639,7 +647,8 @@
 }
 
 .jobs-plug-apply-button:hover {
-	background: #008b8f;
+	background: var(--theme-palette-color-1, #2872fa);
+	color: var(--theme-palette-color-8, #ffffff);
 }
 
 .jobs-plug-expired-notice {
@@ -667,8 +676,8 @@
 }
 
 .jobs-plug-share-link:hover {
-	background: #00a7ac;
-	color: #fff;
+	background: var(--theme-palette-color-2, #1559ed);
+	color: var(--theme-palette-color-8, #ffffff);
 }
 
 .jobs-plug-share-link .dashicons {
@@ -683,7 +692,7 @@
 }
 
 .jobs-plug-related h2 {
-	background: #fff;
+	background: var(--theme-palette-color-8, #ffffff);
 	padding: 20px;
 	margin: 0 0 20px;
 	border-radius: 8px;

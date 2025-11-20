@@ -138,7 +138,7 @@ get_header();
 
 					<!-- Application Method -->
 					<?php if ( ! empty( $application_method ) ) : ?>
-						<div class="jobs-plug-application-method">
+						<div class="jobs-plug-application-method" id="how-to-apply">
 							<h2><?php esc_html_e( 'How to Apply', 'jobs-plug' ); ?></h2>
 							<div class="jobs-plug-application-content">
 								<?php echo wp_kses_post( wpautop( $application_method ) ); ?>
@@ -170,7 +170,7 @@ get_header();
 						<h3><?php esc_html_e( 'Interested in this job?', 'jobs-plug' ); ?></h3>
 						<?php if ( ! empty( $expiry_date ) && strtotime( $expiry_date ) >= current_time( 'timestamp' ) ) : ?>
 							<p><?php esc_html_e( 'This position is currently open for applications.', 'jobs-plug' ); ?></p>
-							<a href="#application-method" class="jobs-plug-apply-button">
+							<a href="#how-to-apply" class="jobs-plug-apply-button">
 								<?php esc_html_e( 'Apply Now', 'jobs-plug' ); ?>
 							</a>
 						<?php else : ?>
