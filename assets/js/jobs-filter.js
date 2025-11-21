@@ -28,8 +28,6 @@
 		const employerSelect = form.querySelector('select[name="employer"]');
 		const locationSelect = form.querySelector('select[name="location"]');
 		const jobTypeSelect = form.querySelector('select[name="job_type"]');
-		const salaryMinInput = form.querySelector('input[name="salary_min"]');
-		const salaryMaxInput = form.querySelector('input[name="salary_max"]');
 		const featuredCheckbox = form.querySelector('input[name="featured_only"]');
 		const remoteCheckbox = form.querySelector('input[name="remote_only"]');
 
@@ -54,16 +52,6 @@
 		selectInputs.forEach(function(input) {
 			if (input) {
 				input.addEventListener('change', performFilter);
-			}
-		});
-
-		// Filter on salary change with debounce.
-		[salaryMinInput, salaryMaxInput].forEach(function(input) {
-			if (input) {
-				input.addEventListener('input', function() {
-					clearTimeout(searchTimeout);
-					searchTimeout = setTimeout(performFilter, 800);
-				});
 			}
 		});
 
@@ -98,12 +86,6 @@
 			}
 			if (jobTypeSelect && jobTypeSelect.value) {
 				params.append('job_type', jobTypeSelect.value);
-			}
-			if (salaryMinInput && salaryMinInput.value) {
-				params.append('salary_min', salaryMinInput.value);
-			}
-			if (salaryMaxInput && salaryMaxInput.value) {
-				params.append('salary_max', salaryMaxInput.value);
 			}
 			if (featuredCheckbox && featuredCheckbox.checked) {
 				params.append('featured_only', '1');

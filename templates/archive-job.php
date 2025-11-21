@@ -57,8 +57,6 @@ get_header();
 			$current_employer      = isset( $_GET['employer'] ) ? sanitize_text_field( wp_unslash( $_GET['employer'] ) ) : '';
 			$current_location      = isset( $_GET['location'] ) ? sanitize_text_field( wp_unslash( $_GET['location'] ) ) : '';
 			$current_job_type      = isset( $_GET['job_type'] ) ? sanitize_text_field( wp_unslash( $_GET['job_type'] ) ) : '';
-			$current_salary_min    = isset( $_GET['salary_min'] ) ? absint( $_GET['salary_min'] ) : '';
-			$current_salary_max    = isset( $_GET['salary_max'] ) ? absint( $_GET['salary_max'] ) : '';
 			$current_featured_only = isset( $_GET['featured_only'] ) && '1' === $_GET['featured_only'];
 			$current_remote_only   = isset( $_GET['remote_only'] ) && '1' === $_GET['remote_only'];
 
@@ -166,32 +164,6 @@ get_header();
 							</select>
 						</div>
 					<?php endif; ?>
-
-					<!-- Salary Range Filters -->
-					<div class="jobs-plug-filter jobs-plug-filter-salary">
-						<label for="salary-min-filter"><?php esc_html_e( 'Salary Range:', 'jobs-plug' ); ?></label>
-						<div class="jobs-plug-salary-inputs">
-							<input
-								type="number"
-								name="salary_min"
-								id="salary-min-filter"
-								placeholder="<?php esc_attr_e( 'Min', 'jobs-plug' ); ?>"
-								value="<?php echo esc_attr( $current_salary_min ); ?>"
-								min="0"
-								step="1000000"
-							/>
-							<span class="jobs-plug-salary-separator">-</span>
-							<input
-								type="number"
-								name="salary_max"
-								id="salary-max-filter"
-								placeholder="<?php esc_attr_e( 'Max', 'jobs-plug' ); ?>"
-								value="<?php echo esc_attr( $current_salary_max ); ?>"
-								min="0"
-								step="1000000"
-							/>
-						</div>
-					</div>
 
 					<!-- Featured Only Checkbox -->
 					<div class="jobs-plug-filter jobs-plug-filter-checkbox">

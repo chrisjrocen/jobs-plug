@@ -268,33 +268,6 @@ class Jobs_Plug {
 			$meta_query = array();
 		}
 
-		// Filter by salary range.
-		if ( ! empty( $_GET['salary_min'] ) && ! empty( $_GET['salary_max'] ) ) {
-			// Both min and max set - use BETWEEN.
-			$meta_query[] = array(
-				'key'     => '_job_salary',
-				'value'   => array( absint( $_GET['salary_min'] ), absint( $_GET['salary_max'] ) ),
-				'type'    => 'NUMERIC',
-				'compare' => 'BETWEEN',
-			);
-		} elseif ( ! empty( $_GET['salary_min'] ) ) {
-			// Only min set - use >=.
-			$meta_query[] = array(
-				'key'     => '_job_salary',
-				'value'   => absint( $_GET['salary_min'] ),
-				'type'    => 'NUMERIC',
-				'compare' => '>=',
-			);
-		} elseif ( ! empty( $_GET['salary_max'] ) ) {
-			// Only max set - use <=.
-			$meta_query[] = array(
-				'key'     => '_job_salary',
-				'value'   => absint( $_GET['salary_max'] ),
-				'type'    => 'NUMERIC',
-				'compare' => '<=',
-			);
-		}
-
 		// Filter by featured status.
 		if ( ! empty( $_GET['featured_only'] ) && '1' === $_GET['featured_only'] ) {
 			$meta_query[] = array(
@@ -390,30 +363,6 @@ class Jobs_Plug {
 
 		// Build meta query.
 		$meta_query = array();
-
-		// Salary range filtering.
-		if ( ! empty( $_POST['salary_min'] ) && ! empty( $_POST['salary_max'] ) ) {
-			$meta_query[] = array(
-				'key'     => '_job_salary',
-				'value'   => array( absint( $_POST['salary_min'] ), absint( $_POST['salary_max'] ) ),
-				'type'    => 'NUMERIC',
-				'compare' => 'BETWEEN',
-			);
-		} elseif ( ! empty( $_POST['salary_min'] ) ) {
-			$meta_query[] = array(
-				'key'     => '_job_salary',
-				'value'   => absint( $_POST['salary_min'] ),
-				'type'    => 'NUMERIC',
-				'compare' => '>=',
-			);
-		} elseif ( ! empty( $_POST['salary_max'] ) ) {
-			$meta_query[] = array(
-				'key'     => '_job_salary',
-				'value'   => absint( $_POST['salary_max'] ),
-				'type'    => 'NUMERIC',
-				'compare' => '<=',
-			);
-		}
 
 		// Featured only filtering.
 		if ( ! empty( $_POST['featured_only'] ) && '1' === $_POST['featured_only'] ) {
