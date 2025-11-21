@@ -31,6 +31,7 @@
 		const salaryMinInput = form.querySelector('input[name="salary_min"]');
 		const salaryMaxInput = form.querySelector('input[name="salary_max"]');
 		const featuredCheckbox = form.querySelector('input[name="featured_only"]');
+		const remoteCheckbox = form.querySelector('input[name="remote_only"]');
 
 		let searchTimeout = null;
 
@@ -70,6 +71,9 @@
 		if (featuredCheckbox) {
 			featuredCheckbox.addEventListener('change', performFilter);
 		}
+		if (remoteCheckbox) {
+			remoteCheckbox.addEventListener('change', performFilter);
+		}
 
 		// Perform the actual filtering.
 		function performFilter() {
@@ -103,6 +107,9 @@
 			}
 			if (featuredCheckbox && featuredCheckbox.checked) {
 				params.append('featured_only', '1');
+			}
+			if (remoteCheckbox && remoteCheckbox.checked) {
+				params.append('remote_only', '1');
 			}
 
 			// Add AJAX action.

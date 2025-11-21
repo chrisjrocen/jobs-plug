@@ -301,6 +301,14 @@ class Jobs_Plug {
 			);
 		}
 
+		// Filter by remote status.
+		if ( ! empty( $_GET['remote_only'] ) && '1' === $_GET['remote_only'] ) {
+			$meta_query[] = array(
+				'key'   => '_job_is_remote',
+				'value' => '1',
+			);
+		}
+
 		// Exclude expired jobs.
 		$today        = current_time( 'Y-m-d' );
 		$meta_query[] = array(
@@ -409,6 +417,14 @@ class Jobs_Plug {
 		if ( ! empty( $_POST['featured_only'] ) && '1' === $_POST['featured_only'] ) {
 			$meta_query[] = array(
 				'key'   => '_job_is_featured',
+				'value' => '1',
+			);
+		}
+
+		// Remote only filtering.
+		if ( ! empty( $_POST['remote_only'] ) && '1' === $_POST['remote_only'] ) {
+			$meta_query[] = array(
+				'key'   => '_job_is_remote',
 				'value' => '1',
 			);
 		}
@@ -1060,6 +1076,7 @@ class Jobs_Plug {
 		$expiry_date        = get_post_meta( $post->ID, '_job_expiry_date', true );
 		$salary             = get_post_meta( $post->ID, '_job_salary', true );
 		$is_featured        = get_post_meta( $post->ID, '_job_is_featured', true );
+		$is_remote          = get_post_meta( $post->ID, '_job_is_remote', true );
 
 		?>
 		<table class="form-table">
@@ -1147,6 +1164,26 @@ class Jobs_Plug {
 					</p>
 				</td>
 			</tr>
+			<tr>
+				<th scope="row">
+					<label for="job_is_remote"><?php esc_html_e( 'Remote Job', 'jobs-plug' ); ?></label>
+				</th>
+				<td>
+					<label for="job_is_remote">
+						<input
+							type="checkbox"
+							id="job_is_remote"
+							name="job_is_remote"
+							value="1"
+							<?php checked( $is_remote, '1' ); ?>
+						/>
+						<?php esc_html_e( 'Mark this job as remote', 'jobs-plug' ); ?>
+					</label>
+					<p class="description">
+						<?php esc_html_e( 'Check this if the job can be done remotely.', 'jobs-plug' ); ?>
+					</p>
+				</td>
+			</tr>
 		</table>
 		<?php
 	}
@@ -1208,6 +1245,13 @@ class Jobs_Plug {
 			update_post_meta( $post_id, '_job_is_featured', '1' );
 		} else {
 			delete_post_meta( $post_id, '_job_is_featured' );
+		}
+
+		// Save Remote checkbox.
+		if ( isset( $_POST['job_is_remote'] ) && '1' === $_POST['job_is_remote'] ) {
+			update_post_meta( $post_id, '_job_is_remote', '1' );
+		} else {
+			delete_post_meta( $post_id, '_job_is_remote' );
 		}
 	}
 

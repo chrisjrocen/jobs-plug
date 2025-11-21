@@ -18,6 +18,7 @@ get_header();
 		$expiry_date        = get_post_meta( get_the_ID(), '_job_expiry_date', true );
 		$salary             = get_post_meta( get_the_ID(), '_job_salary', true );
 		$is_featured        = get_post_meta( get_the_ID(), '_job_is_featured', true );
+		$is_remote          = get_post_meta( get_the_ID(), '_job_is_remote', true );
 
 		// Get taxonomy terms.
 		$employers  = get_the_terms( get_the_ID(), 'employer' );
@@ -90,6 +91,12 @@ get_header();
 							</span>
 						</div>
 					<?php endif; ?>
+
+					<div class="jobs-plug-meta-item">
+						<span class="dashicons dashicons-admin-site"></span>
+						<strong><?php esc_html_e( 'Remote:', 'jobs-plug' ); ?></strong>
+						<span><?php echo $is_remote ? esc_html__( 'Yes', 'jobs-plug' ) : esc_html__( 'No', 'jobs-plug' ); ?></span>
+					</div>
 				</div>
 			</div>
 

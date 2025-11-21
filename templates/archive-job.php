@@ -60,6 +60,7 @@ get_header();
 			$current_salary_min    = isset( $_GET['salary_min'] ) ? absint( $_GET['salary_min'] ) : '';
 			$current_salary_max    = isset( $_GET['salary_max'] ) ? absint( $_GET['salary_max'] ) : '';
 			$current_featured_only = isset( $_GET['featured_only'] ) && '1' === $_GET['featured_only'];
+			$current_remote_only   = isset( $_GET['remote_only'] ) && '1' === $_GET['remote_only'];
 
 			// Get taxonomies for filtering.
 			$job_categories = get_terms(
@@ -203,6 +204,20 @@ get_header();
 								<?php checked( $current_featured_only, true ); ?>
 							/>
 							<?php esc_html_e( 'Featured jobs only', 'jobs-plug' ); ?>
+						</label>
+					</div>
+
+					<!-- Remote Only Checkbox -->
+					<div class="jobs-plug-filter jobs-plug-filter-checkbox">
+						<label for="remote-only-filter">
+							<input
+								type="checkbox"
+								name="remote_only"
+								id="remote-only-filter"
+								value="1"
+								<?php checked( $current_remote_only, true ); ?>
+							/>
+							<?php esc_html_e( 'Remote jobs only', 'jobs-plug' ); ?>
 						</label>
 					</div>
 
