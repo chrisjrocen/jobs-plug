@@ -121,7 +121,7 @@ class Jobs_Plug {
 		}
 
 		// Check if it's a job archive or taxonomy.
-		if ( is_post_type_archive( 'job' ) || is_tax( array( 'job_category', 'employer', 'location', 'job_type' ) ) ) {
+		if ( is_post_type_archive( 'job' ) || is_tax( array( 'job_category', 'employer', 'location', 'country', 'job_type' ) ) ) {
 			$plugin_template = JOBS_PLUG_PATH . 'templates/archive-job.php';
 			if ( file_exists( $plugin_template ) ) {
 				return $plugin_template;
@@ -136,7 +136,7 @@ class Jobs_Plug {
 	 */
 	public function enqueue_frontend_assets() {
 		// Only load on job-related pages.
-		if ( is_singular( 'job' ) || is_post_type_archive( 'job' ) || is_tax( array( 'job_category', 'employer', 'location', 'job_type' ) ) ) {
+		if ( is_singular( 'job' ) || is_post_type_archive( 'job' ) || is_tax( array( 'job_category', 'employer', 'location', 'country', 'job_type' ) ) ) {
 			wp_enqueue_style(
 				'jobs-plug-frontend',
 				JOBS_PLUG_URL . 'assets/css/jobs-plug-frontend.css',
@@ -148,7 +148,7 @@ class Jobs_Plug {
 			wp_enqueue_style( 'dashicons' );
 
 			// Enqueue filter JavaScript on archive pages only.
-			if ( is_post_type_archive( 'job' ) || is_tax( array( 'job_category', 'employer', 'location', 'job_type' ) ) ) {
+			if ( is_post_type_archive( 'job' ) || is_tax( array( 'job_category', 'employer', 'location', 'country', 'job_type' ) ) ) {
 				wp_enqueue_script(
 					'jobs-plug-filter',
 					JOBS_PLUG_URL . 'assets/js/jobs-filter.js',
@@ -197,7 +197,7 @@ class Jobs_Plug {
 		}
 
 		// Check if it's a job taxonomy archive.
-		$job_taxonomies = array( 'job_category', 'employer', 'location', 'job_type' );
+		$job_taxonomies = array( 'job_category', 'employer', 'location', 'country', 'job_type' );
 		if ( in_array( $taxonomy, $job_taxonomies, true ) ) {
 			$is_job_archive = true;
 			// Ensure post type is set for taxonomy archives.
@@ -640,6 +640,7 @@ class Jobs_Plug {
 		// Get taxonomy terms.
 		$employers = get_the_terms( $post->ID, 'employer' );
 		$locations = get_the_terms( $post->ID, 'location' );
+		$countries = get_the_terms( $post->ID, 'country' );
 		$job_types = get_the_terms( $post->ID, 'job_type' );
 
 		// Build schema data.
@@ -675,6 +676,11 @@ class Jobs_Plug {
 					'addressLocality' => $locations[0]->name,
 				),
 			);
+
+			// Add country to location if available.
+			if ( ! empty( $countries ) && ! is_wp_error( $countries ) ) {
+				$schema['jobLocation']['address']['addressCountry'] = $countries[0]->name;
+			}
 		}
 
 		// Add expiry date (validThrough).
@@ -805,6 +811,7 @@ class Jobs_Plug {
 		$this->register_job_category_taxonomy();
 		$this->register_employer_taxonomy();
 		$this->register_location_taxonomy();
+		$this->register_country_taxonomy();
 		$this->register_job_type_taxonomy();
 	}
 
@@ -915,6 +922,43 @@ class Jobs_Plug {
 		);
 
 		register_taxonomy( 'location', array( 'job' ), $args );
+	}
+
+	/**
+	 * Register Country taxonomy (hierarchical).
+	 */
+	private function register_country_taxonomy() {
+		$labels = array(
+			'name'                       => _x( 'Countries', 'taxonomy general name', 'jobs-plug' ),
+			'singular_name'              => _x( 'Country', 'taxonomy singular name', 'jobs-plug' ),
+			'search_items'               => __( 'Search Countries', 'jobs-plug' ),
+			'popular_items'              => __( 'Popular Countries', 'jobs-plug' ),
+			'all_items'                  => __( 'All Countries', 'jobs-plug' ),
+			'parent_item'                => __( 'Parent Country', 'jobs-plug' ),
+			'parent_item_colon'          => __( 'Parent Country:', 'jobs-plug' ),
+			'edit_item'                  => __( 'Edit Country', 'jobs-plug' ),
+			'update_item'                => __( 'Update Country', 'jobs-plug' ),
+			'add_new_item'               => __( 'Add New Country', 'jobs-plug' ),
+			'new_item_name'              => __( 'New Country Name', 'jobs-plug' ),
+			'separate_items_with_commas' => __( 'Separate countries with commas', 'jobs-plug' ),
+			'add_or_remove_items'        => __( 'Add or remove countries', 'jobs-plug' ),
+			'choose_from_most_used'      => __( 'Choose from the most used countries', 'jobs-plug' ),
+			'not_found'                  => __( 'No countries found.', 'jobs-plug' ),
+			'menu_name'                  => __( 'Countries', 'jobs-plug' ),
+		);
+
+		$args = array(
+			'labels'            => $labels,
+			'hierarchical'      => true,
+			'public'            => true,
+			'show_ui'           => true,
+			'show_admin_column' => true,
+			'show_in_nav_menus' => true,
+			'show_tagcloud'     => true,
+			'rewrite'           => array( 'slug' => 'country' ),
+		);
+
+		register_taxonomy( 'country', array( 'job' ), $args );
 	}
 
 	/**
