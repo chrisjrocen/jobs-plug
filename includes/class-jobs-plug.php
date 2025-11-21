@@ -80,7 +80,9 @@ class Jobs_Plug {
 			add_action( 'admin_init', array( $this, 'admin_init' ) );
 			add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 			add_action( 'add_meta_boxes', array( $this, 'add_job_meta_boxes' ) );
+			add_action( 'save_post_job', array( $this, 'validate_required_taxonomies' ), 5, 2 );
 			add_action( 'save_post_job', array( $this, 'save_job_meta_boxes' ), 10, 2 );
+			add_action( 'admin_notices', array( $this, 'show_taxonomy_validation_notices' ) );
 
 			// Employer taxonomy image field hooks.
 			add_action( 'employer_add_form_fields', array( $this, 'add_employer_logo_field' ) );
@@ -1256,6 +1258,103 @@ class Jobs_Plug {
 	}
 
 	/**
+	 * Validate required taxonomies before publishing.
+	 *
+	 * @param int      $post_id The post ID.
+	 * @param \WP_Post $post    The post object.
+	 */
+	public function validate_required_taxonomies( $post_id, $post ) {
+		// Check if this is an autosave.
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+
+		// Check user permissions.
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return;
+		}
+
+		// Only validate when trying to publish.
+		if ( 'publish' !== $post->post_status && 'publish' !== get_post_status( $post_id ) ) {
+			return;
+		}
+
+		// Define required taxonomies.
+		$required_taxonomies = array(
+			'job_category' => __( 'Job Category', 'jobs-plug' ),
+			'employer'     => __( 'Employer', 'jobs-plug' ),
+			'location'     => __( 'Location', 'jobs-plug' ),
+			'job_type'     => __( 'Job Type', 'jobs-plug' ),
+		);
+
+		$missing_taxonomies = array();
+
+		// Check each required taxonomy.
+		foreach ( $required_taxonomies as $taxonomy => $label ) {
+			$terms = get_the_terms( $post_id, $taxonomy );
+
+			if ( empty( $terms ) || is_wp_error( $terms ) ) {
+				$missing_taxonomies[] = $label;
+			}
+		}
+
+		// If there are missing taxonomies, prevent publishing.
+		if ( ! empty( $missing_taxonomies ) ) {
+			// Unhook this function to prevent infinite loop.
+			remove_action( 'save_post_job', array( $this, 'validate_required_taxonomies' ), 5 );
+
+			// Set post status to draft.
+			wp_update_post(
+				array(
+					'ID'          => $post_id,
+					'post_status' => 'draft',
+				)
+			);
+
+			// Re-hook this function.
+			add_action( 'save_post_job', array( $this, 'validate_required_taxonomies' ), 5, 2 );
+
+			// Store error in transient for display.
+			set_transient( 'jobs_plug_taxonomy_error_' . $post_id, $missing_taxonomies, 45 );
+		}
+	}
+
+	/**
+	 * Show taxonomy validation error notices.
+	 */
+	public function show_taxonomy_validation_notices() {
+		global $post;
+
+		if ( ! $post || 'job' !== $post->post_type ) {
+			return;
+		}
+
+		$errors = get_transient( 'jobs_plug_taxonomy_error_' . $post->ID );
+
+		if ( $errors ) {
+			delete_transient( 'jobs_plug_taxonomy_error_' . $post->ID );
+			?>
+			<div class="notice notice-error is-dismissible">
+				<p>
+					<strong><?php esc_html_e( 'Job post could not be published.', 'jobs-plug' ); ?></strong>
+				</p>
+				<p>
+					<?php esc_html_e( 'The following required fields are missing:', 'jobs-plug' ); ?>
+				</p>
+				<ul style="list-style: disc; margin-left: 20px;">
+					<?php foreach ( $errors as $error ) : ?>
+						<li><?php echo esc_html( $error ); ?></li>
+					<?php endforeach; ?>
+				</ul>
+				<p>
+					<?php esc_html_e( 'Please add at least one term to each required taxonomy and try publishing again.', 'jobs-plug' ); ?>
+				</p>
+			</div>
+			<?php
+		}
+	}
+
+	/**
 	 * Set job archive as homepage.
 	 *
 	 * @param WP_Query $query The WordPress query object.
@@ -1430,11 +1529,25 @@ class Jobs_Plug {
 	}
 
 	/**
-	 * Enqueue admin scripts for media uploader.
+	 * Enqueue admin scripts for media uploader and validation.
 	 *
 	 * @param string $hook The current admin page hook.
 	 */
 	public function enqueue_admin_scripts( $hook ) {
+		// Enqueue job validation script on job post edit screen.
+		if ( 'post.php' === $hook || 'post-new.php' === $hook ) {
+			$screen = get_current_screen();
+			if ( $screen && 'job' === $screen->post_type ) {
+				wp_enqueue_script(
+					'jobs-plug-validation',
+					JOBS_PLUG_URL . 'assets/js/job-validation.js',
+					array( 'jquery' ),
+					JOBS_PLUG_VERSION,
+					true
+				);
+			}
+		}
+
 		$should_load = false;
 
 		// Check if we're on employer taxonomy edit pages.
