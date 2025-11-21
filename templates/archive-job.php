@@ -277,9 +277,13 @@ get_header();
 								</div>
 							<?php endif; ?>
 
-							<?php if ( has_post_thumbnail() ) : ?>
+							<?php
+							// Display employer logo if available.
+							$employer_logo = \JobsPlug\Jobs_Plug::get_instance()->get_employer_logo( get_the_ID(), 'full' );
+							if ( ! empty( $employer_logo ) ) :
+								?>
 								<div class="jobs-plug-card-thumbnail">
-									<?php the_post_thumbnail( 'full' ); ?>
+									<?php echo $employer_logo; ?>
 								</div>
 							<?php endif; ?>
 

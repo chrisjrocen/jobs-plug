@@ -81,6 +81,13 @@ class Jobs_Plug {
 			add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 			add_action( 'add_meta_boxes', array( $this, 'add_job_meta_boxes' ) );
 			add_action( 'save_post_job', array( $this, 'save_job_meta_boxes' ), 10, 2 );
+
+			// Employer taxonomy image field hooks.
+			add_action( 'employer_add_form_fields', array( $this, 'add_employer_logo_field' ) );
+			add_action( 'employer_edit_form_fields', array( $this, 'edit_employer_logo_field' ) );
+			add_action( 'created_employer', array( $this, 'save_employer_logo' ) );
+			add_action( 'edited_employer', array( $this, 'save_employer_logo' ) );
+			add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_scripts' ) );
 		}
 	}
 
@@ -496,9 +503,13 @@ class Jobs_Plug {
 							</div>
 						<?php endif; ?>
 
-						<?php if ( has_post_thumbnail() ) : ?>
+						<?php
+						// Display employer logo if available.
+						$employer_logo = $this->get_employer_logo( get_the_ID(), 'full' );
+						if ( ! empty( $employer_logo ) ) :
+							?>
 							<div class="jobs-plug-card-thumbnail">
-								<?php the_post_thumbnail( 'full' ); ?>
+								<?php echo $employer_logo; ?>
 							</div>
 						<?php endif; ?>
 
@@ -781,7 +792,7 @@ class Jobs_Plug {
 			'hierarchical'       => false,
 			'menu_position'      => 20,
 			'menu_icon'          => 'dashicons-businessman',
-			'supports'           => array( 'title', 'editor', 'thumbnail' ),
+			'supports'           => array( 'title', 'editor' ),
 		);
 
 		register_post_type( 'job', $args );
@@ -1250,5 +1261,155 @@ class Jobs_Plug {
 			<?php esc_html_e( 'When enabled, the job listings will be shown on your homepage instead of your regular posts or pages.', 'jobs-plug' ); ?>
 		</p>
 		<?php
+	}
+
+	/**
+	 * Enqueue admin scripts for media uploader.
+	 *
+	 * @param string $hook The current admin page hook.
+	 */
+	public function enqueue_admin_scripts( $hook ) {
+		// Only load on taxonomy edit pages.
+		if ( 'edit-tags.php' !== $hook && 'term.php' !== $hook ) {
+			return;
+		}
+
+		// Only load for employer taxonomy.
+		$screen = get_current_screen();
+		if ( ! $screen || 'employer' !== $screen->taxonomy ) {
+			return;
+		}
+
+		// Enqueue media uploader.
+		wp_enqueue_media();
+
+		// Enqueue custom script for handling image upload.
+		wp_add_inline_script(
+			'media-upload',
+			"
+			jQuery(document).ready(function($) {
+				var mediaUploader;
+
+				$(document).on('click', '.jobs-plug-upload-logo', function(e) {
+					e.preventDefault();
+
+					var button = $(this);
+
+					if (mediaUploader) {
+						mediaUploader.open();
+						return;
+					}
+
+					mediaUploader = wp.media({
+						title: '" . esc_js( __( 'Select Employer Logo', 'jobs-plug' ) ) . "',
+						button: {
+							text: '" . esc_js( __( 'Use this image', 'jobs-plug' ) ) . "'
+						},
+						multiple: false
+					});
+
+					mediaUploader.on('select', function() {
+						var attachment = mediaUploader.state().get('selection').first().toJSON();
+						$('#employer-logo-id').val(attachment.id);
+						$('#employer-logo-preview').html('<img src=\"' + attachment.url + '\" style=\"max-width: 150px; height: auto;\" />');
+						$('.jobs-plug-remove-logo').show();
+					});
+
+					mediaUploader.open();
+				});
+
+				$(document).on('click', '.jobs-plug-remove-logo', function(e) {
+					e.preventDefault();
+					$('#employer-logo-id').val('');
+					$('#employer-logo-preview').html('');
+					$(this).hide();
+				});
+			});
+			"
+		);
+	}
+
+	/**
+	 * Add employer logo field to add term form.
+	 */
+	public function add_employer_logo_field() {
+		?>
+		<div class="form-field term-logo-wrap">
+			<label for="employer-logo"><?php esc_html_e( 'Employer Logo', 'jobs-plug' ); ?></label>
+			<div id="employer-logo-preview"></div>
+			<input type="hidden" id="employer-logo-id" name="employer_logo_id" value="" />
+			<button type="button" class="button jobs-plug-upload-logo"><?php esc_html_e( 'Upload Logo', 'jobs-plug' ); ?></button>
+			<button type="button" class="button jobs-plug-remove-logo" style="display:none;"><?php esc_html_e( 'Remove Logo', 'jobs-plug' ); ?></button>
+			<p class="description"><?php esc_html_e( 'Upload a logo image for this employer. This will be displayed on job listings instead of the job featured image.', 'jobs-plug' ); ?></p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Add employer logo field to edit term form.
+	 *
+	 * @param WP_Term $term The term object.
+	 */
+	public function edit_employer_logo_field( $term ) {
+		$logo_id  = get_term_meta( $term->term_id, 'employer_logo_id', true );
+		$logo_url = $logo_id ? wp_get_attachment_image_url( $logo_id, 'medium' ) : '';
+		?>
+		<tr class="form-field term-logo-wrap">
+			<th scope="row">
+				<label for="employer-logo"><?php esc_html_e( 'Employer Logo', 'jobs-plug' ); ?></label>
+			</th>
+			<td>
+				<div id="employer-logo-preview">
+					<?php if ( $logo_url ) : ?>
+						<img src="<?php echo esc_url( $logo_url ); ?>" style="max-width: 150px; height: auto;" />
+					<?php endif; ?>
+				</div>
+				<input type="hidden" id="employer-logo-id" name="employer_logo_id" value="<?php echo esc_attr( $logo_id ); ?>" />
+				<button type="button" class="button jobs-plug-upload-logo"><?php esc_html_e( 'Upload Logo', 'jobs-plug' ); ?></button>
+				<button type="button" class="button jobs-plug-remove-logo" <?php echo $logo_id ? '' : 'style="display:none;"'; ?>><?php esc_html_e( 'Remove Logo', 'jobs-plug' ); ?></button>
+				<p class="description"><?php esc_html_e( 'Upload a logo image for this employer. This will be displayed on job listings instead of the job featured image.', 'jobs-plug' ); ?></p>
+			</td>
+		</tr>
+		<?php
+	}
+
+	/**
+	 * Save employer logo field.
+	 *
+	 * @param int $term_id The term ID.
+	 */
+	public function save_employer_logo( $term_id ) {
+		if ( isset( $_POST['employer_logo_id'] ) ) {
+			$logo_id = absint( $_POST['employer_logo_id'] );
+			if ( $logo_id > 0 ) {
+				update_term_meta( $term_id, 'employer_logo_id', $logo_id );
+			} else {
+				delete_term_meta( $term_id, 'employer_logo_id' );
+			}
+		}
+	}
+
+	/**
+	 * Get employer logo HTML.
+	 *
+	 * @param int    $job_id The job post ID.
+	 * @param string $size   Image size (default: 'full').
+	 * @return string The logo HTML or empty string if no logo found.
+	 */
+	public function get_employer_logo( $job_id, $size = 'full' ) {
+		$employers = get_the_terms( $job_id, 'employer' );
+
+		if ( empty( $employers ) || is_wp_error( $employers ) ) {
+			return '';
+		}
+
+		$employer_id = $employers[0]->term_id;
+		$logo_id     = get_term_meta( $employer_id, 'employer_logo_id', true );
+
+		if ( ! $logo_id ) {
+			return '';
+		}
+
+		return wp_get_attachment_image( $logo_id, $size );
 	}
 }

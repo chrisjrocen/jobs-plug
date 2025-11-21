@@ -98,9 +98,13 @@ get_header();
 				<div class="jobs-plug-single-main">
 
 					<!-- Job Thumbnail -->
-					<?php if ( has_post_thumbnail() ) : ?>
+					<?php
+					// Display employer logo if available.
+					$employer_logo = \JobsPlug\Jobs_Plug::get_instance()->get_employer_logo( get_the_ID(), 'large' );
+					if ( ! empty( $employer_logo ) ) :
+						?>
 						<div class="jobs-plug-single-thumbnail">
-							<?php the_post_thumbnail( 'large' ); ?>
+							<?php echo $employer_logo; ?>
 						</div>
 					<?php endif; ?>
 
@@ -259,9 +263,13 @@ get_header();
 									</div>
 								<?php endif; ?>
 
-								<?php if ( has_post_thumbnail() ) : ?>
+								<?php
+								// Display employer logo if available.
+								$related_employer_logo = \JobsPlug\Jobs_Plug::get_instance()->get_employer_logo( get_the_ID(), 'full' );
+								if ( ! empty( $related_employer_logo ) ) :
+									?>
 									<div class="jobs-plug-card-thumbnail">
-										<?php the_post_thumbnail( 'full' ); ?>
+										<?php echo $related_employer_logo; ?>
 									</div>
 								<?php endif; ?>
 
