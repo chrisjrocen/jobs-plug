@@ -121,7 +121,7 @@ class Jobs_Plug {
 		}
 
 		// Check if it's a job archive or taxonomy.
-		if ( is_post_type_archive( 'job' ) || is_tax( array( 'job_category', 'employer', 'location', 'country', 'job_type' ) ) ) {
+		if ( is_post_type_archive( 'job' ) || is_tax( array( 'job_category', 'employer', 'location', 'country', 'job_type', 'job_tags' ) ) ) {
 			$plugin_template = JOBS_PLUG_PATH . 'templates/archive-job.php';
 			if ( file_exists( $plugin_template ) ) {
 				return $plugin_template;
@@ -136,7 +136,7 @@ class Jobs_Plug {
 	 */
 	public function enqueue_frontend_assets() {
 		// Only load on job-related pages.
-		if ( is_singular( 'job' ) || is_post_type_archive( 'job' ) || is_tax( array( 'job_category', 'employer', 'location', 'country', 'job_type' ) ) ) {
+		if ( is_singular( 'job' ) || is_post_type_archive( 'job' ) || is_tax( array( 'job_category', 'employer', 'location', 'country', 'job_type', 'job_tags' ) ) ) {
 			wp_enqueue_style(
 				'jobs-plug-frontend',
 				JOBS_PLUG_URL . 'assets/css/jobs-plug-frontend.css',
@@ -148,7 +148,7 @@ class Jobs_Plug {
 			wp_enqueue_style( 'dashicons' );
 
 			// Enqueue filter JavaScript on archive pages only.
-			if ( is_post_type_archive( 'job' ) || is_tax( array( 'job_category', 'employer', 'location', 'country', 'job_type' ) ) ) {
+			if ( is_post_type_archive( 'job' ) || is_tax( array( 'job_category', 'employer', 'location', 'country', 'job_type', 'job_tags' ) ) ) {
 				wp_enqueue_script(
 					'jobs-plug-filter',
 					JOBS_PLUG_URL . 'assets/js/jobs-filter.js',
@@ -197,7 +197,7 @@ class Jobs_Plug {
 		}
 
 		// Check if it's a job taxonomy archive.
-		$job_taxonomies = array( 'job_category', 'employer', 'location', 'country', 'job_type' );
+		$job_taxonomies = array( 'job_category', 'employer', 'location', 'country', 'job_type', 'job_tags' );
 		if ( in_array( $taxonomy, $job_taxonomies, true ) ) {
 			$is_job_archive = true;
 			// Ensure post type is set for taxonomy archives.
@@ -813,6 +813,7 @@ class Jobs_Plug {
 		$this->register_location_taxonomy();
 		$this->register_country_taxonomy();
 		$this->register_job_type_taxonomy();
+		$this->register_job_tags_taxonomy();
 	}
 
 	/**
@@ -994,6 +995,41 @@ class Jobs_Plug {
 		);
 
 		register_taxonomy( 'job_type', array( 'job' ), $args );
+	}
+
+	/**
+	 * Register Job Tags taxonomy (non-hierarchical).
+	 */
+	private function register_job_tags_taxonomy() {
+		$labels = array(
+			'name'                       => _x( 'Job Tags', 'taxonomy general name', 'jobs-plug' ),
+			'singular_name'              => _x( 'Job Tag', 'taxonomy singular name', 'jobs-plug' ),
+			'search_items'               => __( 'Search Job Tags', 'jobs-plug' ),
+			'popular_items'              => __( 'Popular Job Tags', 'jobs-plug' ),
+			'all_items'                  => __( 'All Job Tags', 'jobs-plug' ),
+			'edit_item'                  => __( 'Edit Job Tag', 'jobs-plug' ),
+			'update_item'                => __( 'Update Job Tag', 'jobs-plug' ),
+			'add_new_item'               => __( 'Add New Job Tag', 'jobs-plug' ),
+			'new_item_name'              => __( 'New Job Tag Name', 'jobs-plug' ),
+			'separate_items_with_commas' => __( 'Separate job tags with commas', 'jobs-plug' ),
+			'add_or_remove_items'        => __( 'Add or remove job tags', 'jobs-plug' ),
+			'choose_from_most_used'      => __( 'Choose from the most used job tags', 'jobs-plug' ),
+			'not_found'                  => __( 'No job tags found.', 'jobs-plug' ),
+			'menu_name'                  => __( 'Job Tags', 'jobs-plug' ),
+		);
+
+		$args = array(
+			'labels'            => $labels,
+			'hierarchical'      => false,
+			'public'            => true,
+			'show_ui'           => true,
+			'show_admin_column' => true,
+			'show_in_nav_menus' => true,
+			'show_tagcloud'     => true,
+			'rewrite'           => array( 'slug' => 'job-tag' ),
+		);
+
+		register_taxonomy( 'job_tags', array( 'job' ), $args );
 	}
 
 	/**

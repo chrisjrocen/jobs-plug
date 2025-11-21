@@ -24,6 +24,7 @@ get_header();
 		$locations  = get_the_terms( get_the_ID(), 'location' );
 		$job_types  = get_the_terms( get_the_ID(), 'job_type' );
 		$categories = get_the_terms( get_the_ID(), 'job_category' );
+		$job_tags   = get_the_terms( get_the_ID(), 'job_tags' );
 		?>
 
 		<div class="jobs-plug-container">
@@ -160,6 +161,19 @@ get_header();
 								$category_links[] = '<a href="' . esc_url( get_term_link( $category ) ) . '">' . esc_html( $category->name ) . '</a>';
 							}
 							echo implode( ', ', $category_links );
+							?>
+						</div>
+					<?php endif; ?>
+
+					<!-- Job Tags -->
+					<?php if ( ! empty( $job_tags ) && ! is_wp_error( $job_tags ) ) : ?>
+						<div class="jobs-plug-single-tags">
+							<?php
+							$tag_links = array();
+							foreach ( $job_tags as $tag ) {
+								$tag_links[] = '<a href="' . esc_url( get_term_link( $tag ) ) . '">' . esc_html( $tag->name ) . '</a>';
+							}
+							echo implode( ', ', $tag_links );
 							?>
 						</div>
 					<?php endif; ?>
