@@ -1170,6 +1170,16 @@ class Jobs_Plug {
 			)
 		);
 
+		register_setting(
+			'jobs_plug_settings',
+			'jobs_plug_default_employer_logo',
+			array(
+				'type'              => 'integer',
+				'default'           => 0,
+				'sanitize_callback' => 'absint',
+			)
+		);
+
 		// Add settings section.
 		add_settings_section(
 			'jobs_plug_general_section',
@@ -1183,6 +1193,15 @@ class Jobs_Plug {
 			'jobs_plug_set_as_homepage',
 			__( 'Set as Homepage', 'jobs-plug' ),
 			array( $this, 'render_homepage_setting_field' ),
+			'jobs-plug-settings',
+			'jobs_plug_general_section'
+		);
+
+		// Add default logo setting field.
+		add_settings_field(
+			'jobs_plug_default_employer_logo',
+			__( 'Default Employer Logo', 'jobs-plug' ),
+			array( $this, 'render_default_logo_setting_field' ),
 			'jobs-plug-settings',
 			'jobs_plug_general_section'
 		);
@@ -1264,69 +1283,144 @@ class Jobs_Plug {
 	}
 
 	/**
+	 * Render default employer logo setting field.
+	 */
+	public function render_default_logo_setting_field() {
+		$logo_id  = get_option( 'jobs_plug_default_employer_logo', 0 );
+		$logo_url = $logo_id ? wp_get_attachment_image_url( $logo_id, 'medium' ) : '';
+		?>
+		<div class="jobs-plug-default-logo-field">
+			<div id="jobs-plug-default-logo-preview" style="margin-bottom: 10px;">
+				<?php if ( $logo_url ) : ?>
+					<img src="<?php echo esc_url( $logo_url ); ?>" style="max-width: 150px; height: auto; display: block;" />
+				<?php endif; ?>
+			</div>
+			<input type="hidden" id="jobs-plug-default-logo-id" name="jobs_plug_default_employer_logo" value="<?php echo esc_attr( $logo_id ); ?>" />
+			<button type="button" class="button jobs-plug-upload-default-logo"><?php esc_html_e( 'Upload Default Logo', 'jobs-plug' ); ?></button>
+			<button type="button" class="button jobs-plug-remove-default-logo" <?php echo $logo_id ? '' : 'style="display:none;"'; ?>><?php esc_html_e( 'Remove Logo', 'jobs-plug' ); ?></button>
+			<p class="description">
+				<?php esc_html_e( 'Upload a default logo to display for employers without a specific logo. If not set, the website logo will be used as fallback.', 'jobs-plug' ); ?>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
 	 * Enqueue admin scripts for media uploader.
 	 *
 	 * @param string $hook The current admin page hook.
 	 */
 	public function enqueue_admin_scripts( $hook ) {
-		// Only load on taxonomy edit pages.
-		if ( 'edit-tags.php' !== $hook && 'term.php' !== $hook ) {
-			return;
+		$should_load = false;
+
+		// Check if we're on employer taxonomy edit pages.
+		if ( 'edit-tags.php' === $hook || 'term.php' === $hook ) {
+			$screen = get_current_screen();
+			if ( $screen && 'employer' === $screen->taxonomy ) {
+				$should_load = true;
+			}
 		}
 
-		// Only load for employer taxonomy.
-		$screen = get_current_screen();
-		if ( ! $screen || 'employer' !== $screen->taxonomy ) {
+		// Check if we're on the plugin settings page.
+		if ( 'settings_page_jobs-plug-settings' === $hook ) {
+			$should_load = true;
+		}
+
+		if ( ! $should_load ) {
 			return;
 		}
 
 		// Enqueue media uploader.
 		wp_enqueue_media();
 
-		// Enqueue custom script for handling image upload.
-		wp_add_inline_script(
-			'media-upload',
-			"
-			jQuery(document).ready(function($) {
-				var mediaUploader;
+		// Enqueue jQuery (dependency).
+		wp_enqueue_script( 'jquery' );
 
-				$(document).on('click', '.jobs-plug-upload-logo', function(e) {
-					e.preventDefault();
+		// Add inline script for media uploader.
+		$inline_script = "
+		jQuery(document).ready(function($) {
+			'use strict';
 
-					var button = $(this);
+			var mediaUploader;
+			var defaultLogoUploader;
 
-					if (mediaUploader) {
-						mediaUploader.open();
-						return;
-					}
+			// Employer taxonomy logo uploader
+			$(document).on('click', '.jobs-plug-upload-logo', function(e) {
+				e.preventDefault();
 
-					mediaUploader = wp.media({
-						title: '" . esc_js( __( 'Select Employer Logo', 'jobs-plug' ) ) . "',
-						button: {
-							text: '" . esc_js( __( 'Use this image', 'jobs-plug' ) ) . "'
-						},
-						multiple: false
-					});
-
-					mediaUploader.on('select', function() {
-						var attachment = mediaUploader.state().get('selection').first().toJSON();
-						$('#employer-logo-id').val(attachment.id);
-						$('#employer-logo-preview').html('<img src=\"' + attachment.url + '\" style=\"max-width: 150px; height: auto;\" />');
-						$('.jobs-plug-remove-logo').show();
-					});
-
+				if (mediaUploader) {
 					mediaUploader.open();
+					return;
+				}
+
+				mediaUploader = wp.media({
+					title: '" . esc_js( __( 'Select Employer Logo', 'jobs-plug' ) ) . "',
+					button: {
+						text: '" . esc_js( __( 'Use this image', 'jobs-plug' ) ) . "'
+					},
+					library: {
+						type: 'image'
+					},
+					multiple: false
 				});
 
-				$(document).on('click', '.jobs-plug-remove-logo', function(e) {
-					e.preventDefault();
-					$('#employer-logo-id').val('');
-					$('#employer-logo-preview').html('');
-					$(this).hide();
+				mediaUploader.on('select', function() {
+					var attachment = mediaUploader.state().get('selection').first().toJSON();
+					$('#employer-logo-id').val(attachment.id);
+					$('#employer-logo-preview').html('<img src=\"' + attachment.url + '\" style=\"max-width: 150px; height: auto;\" />');
+					$('.jobs-plug-remove-logo').show();
 				});
+
+				mediaUploader.open();
 			});
-			"
-		);
+
+			$(document).on('click', '.jobs-plug-remove-logo', function(e) {
+				e.preventDefault();
+				$('#employer-logo-id').val('');
+				$('#employer-logo-preview').html('');
+				$(this).hide();
+			});
+
+			// Default logo uploader (settings page)
+			$(document).on('click', '.jobs-plug-upload-default-logo', function(e) {
+				e.preventDefault();
+
+				if (defaultLogoUploader) {
+					defaultLogoUploader.open();
+					return;
+				}
+
+				defaultLogoUploader = wp.media({
+					title: '" . esc_js( __( 'Select Default Employer Logo', 'jobs-plug' ) ) . "',
+					button: {
+						text: '" . esc_js( __( 'Use this image', 'jobs-plug' ) ) . "'
+					},
+					library: {
+						type: 'image'
+					},
+					multiple: false
+				});
+
+				defaultLogoUploader.on('select', function() {
+					var attachment = defaultLogoUploader.state().get('selection').first().toJSON();
+					$('#jobs-plug-default-logo-id').val(attachment.id);
+					$('#jobs-plug-default-logo-preview').html('<img src=\"' + attachment.url + '\" style=\"max-width: 150px; height: auto; display: block;\" />');
+					$('.jobs-plug-remove-default-logo').show();
+				});
+
+				defaultLogoUploader.open();
+			});
+
+			$(document).on('click', '.jobs-plug-remove-default-logo', function(e) {
+				e.preventDefault();
+				$('#jobs-plug-default-logo-id').val('0');
+				$('#jobs-plug-default-logo-preview').html('');
+				$(this).hide();
+			});
+		});
+		";
+
+		wp_add_inline_script( 'jquery', $inline_script );
 	}
 
 	/**
@@ -1390,26 +1484,44 @@ class Jobs_Plug {
 	}
 
 	/**
-	 * Get employer logo HTML.
+	 * Get employer logo HTML with fallback support.
 	 *
 	 * @param int    $job_id The job post ID.
 	 * @param string $size   Image size (default: 'full').
 	 * @return string The logo HTML or empty string if no logo found.
 	 */
 	public function get_employer_logo( $job_id, $size = 'full' ) {
+		$logo_id = 0;
+
+		// First, try to get employer-specific logo.
 		$employers = get_the_terms( $job_id, 'employer' );
-
-		if ( empty( $employers ) || is_wp_error( $employers ) ) {
-			return '';
+		if ( ! empty( $employers ) && ! is_wp_error( $employers ) ) {
+			$employer_id = $employers[0]->term_id;
+			$logo_id     = absint( get_term_meta( $employer_id, 'employer_logo_id', true ) );
 		}
 
-		$employer_id = $employers[0]->term_id;
-		$logo_id     = get_term_meta( $employer_id, 'employer_logo_id', true );
-
-		if ( ! $logo_id ) {
-			return '';
+		// If no employer logo, try default logo from settings.
+		if ( empty( $logo_id ) || $logo_id < 1 ) {
+			$logo_id = absint( get_option( 'jobs_plug_default_employer_logo', 0 ) );
 		}
 
-		return wp_get_attachment_image( $logo_id, $size );
+		// If no default logo, try website logo.
+		if ( empty( $logo_id ) || $logo_id < 1 ) {
+			// Try custom logo first (WordPress 4.5+).
+			$custom_logo_id = get_theme_mod( 'custom_logo' );
+			if ( $custom_logo_id ) {
+				$logo_id = absint( $custom_logo_id );
+			}
+		}
+
+		// If we have a logo ID, return the image.
+		if ( ! empty( $logo_id ) && $logo_id > 0 ) {
+			$logo_html = wp_get_attachment_image( $logo_id, $size );
+			if ( ! empty( $logo_html ) ) {
+				return $logo_html;
+			}
+		}
+
+		return '';
 	}
 }
