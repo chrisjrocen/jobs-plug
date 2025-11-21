@@ -144,7 +144,6 @@ get_header();
 
 					<!-- Job Description -->
 					<div class="jobs-plug-single-content">
-						<h2><?php esc_html_e( 'Job Description', 'jobs-plug' ); ?></h2>
 						<?php the_content(); ?>
 					</div>
 
