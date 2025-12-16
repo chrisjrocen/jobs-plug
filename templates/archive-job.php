@@ -220,6 +220,9 @@ get_header();
 
 				<div class="jobs-plug-grid">
 					<?php
+					// Output ad before first job.
+					\JobsPlug\Jobs_Plug::get_instance()->output_ad( 'archive_before' );
+
 					while ( have_posts() ) :
 						the_post();
 
@@ -343,6 +346,11 @@ get_header();
 						</article>
 
 					<?php endwhile; ?>
+
+					<?php
+					// Output ad after last job.
+					\JobsPlug\Jobs_Plug::get_instance()->output_ad( 'archive_after' );
+					?>
 				</div>
 
 				<!-- Pagination -->

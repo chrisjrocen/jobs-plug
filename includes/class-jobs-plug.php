@@ -65,6 +65,9 @@ class Jobs_Plug {
 		// Add schema markup.
 		add_action( 'wp_head', array( $this, 'output_job_schema_markup' ), 10 );
 
+		// Insert ads into single job content.
+		add_filter( 'the_content', array( $this, 'insert_ad_in_content' ), 20 );
+
 		// Set job archive as homepage.
 		add_action( 'pre_get_posts', array( $this, 'set_job_archive_as_homepage' ), 5 );
 
@@ -1646,11 +1649,70 @@ class Jobs_Plug {
 			)
 		);
 
+		// Register ad code settings.
+		register_setting(
+			'jobs_plug_settings',
+			'jobs_plug_ad_archive_before',
+			array(
+				'type'              => 'string',
+				'default'           => '',
+				'sanitize_callback' => array( $this, 'sanitize_ad_code' ),
+			)
+		);
+
+		register_setting(
+			'jobs_plug_settings',
+			'jobs_plug_ad_archive_after',
+			array(
+				'type'              => 'string',
+				'default'           => '',
+				'sanitize_callback' => array( $this, 'sanitize_ad_code' ),
+			)
+		);
+
+		register_setting(
+			'jobs_plug_settings',
+			'jobs_plug_ad_single_content',
+			array(
+				'type'              => 'string',
+				'default'           => '',
+				'sanitize_callback' => array( $this, 'sanitize_ad_code' ),
+			)
+		);
+
+		register_setting(
+			'jobs_plug_settings',
+			'jobs_plug_ad_single_before_apply',
+			array(
+				'type'              => 'string',
+				'default'           => '',
+				'sanitize_callback' => array( $this, 'sanitize_ad_code' ),
+			)
+		);
+
+		register_setting(
+			'jobs_plug_settings',
+			'jobs_plug_ad_single_sidebar',
+			array(
+				'type'              => 'string',
+				'default'           => '',
+				'sanitize_callback' => array( $this, 'sanitize_ad_code' ),
+			)
+		);
+
 		// Add settings section.
 		add_settings_section(
 			'jobs_plug_general_section',
 			__( 'General Settings', 'jobs-plug' ),
 			array( $this, 'render_settings_section' ),
+			'jobs-plug-settings'
+		);
+
+		// Add ad settings section.
+		add_settings_section(
+			'jobs_plug_ads_section',
+			__( 'Advertisement Settings', 'jobs-plug' ),
+			array( $this, 'render_ads_section_description' ),
 			'jobs-plug-settings'
 		);
 
@@ -1670,6 +1732,52 @@ class Jobs_Plug {
 			array( $this, 'render_default_logo_setting_field' ),
 			'jobs-plug-settings',
 			'jobs_plug_general_section'
+		);
+
+		// Add ad setting fields.
+		add_settings_field(
+			'jobs_plug_ad_archive_before',
+			__( 'Ad Before First Job (Archive)', 'jobs-plug' ),
+			array( $this, 'render_ad_field' ),
+			'jobs-plug-settings',
+			'jobs_plug_ads_section',
+			array( 'field' => 'jobs_plug_ad_archive_before' )
+		);
+
+		add_settings_field(
+			'jobs_plug_ad_archive_after',
+			__( 'Ad After Last Job (Archive)', 'jobs-plug' ),
+			array( $this, 'render_ad_field' ),
+			'jobs-plug-settings',
+			'jobs_plug_ads_section',
+			array( 'field' => 'jobs_plug_ad_archive_after' )
+		);
+
+		add_settings_field(
+			'jobs_plug_ad_single_content',
+			__( 'Ad After 2nd Paragraph (Single)', 'jobs-plug' ),
+			array( $this, 'render_ad_field' ),
+			'jobs-plug-settings',
+			'jobs_plug_ads_section',
+			array( 'field' => 'jobs_plug_ad_single_content' )
+		);
+
+		add_settings_field(
+			'jobs_plug_ad_single_before_apply',
+			__( 'Ad Before "How to Apply" (Single)', 'jobs-plug' ),
+			array( $this, 'render_ad_field' ),
+			'jobs-plug-settings',
+			'jobs_plug_ads_section',
+			array( 'field' => 'jobs_plug_ad_single_before_apply' )
+		);
+
+		add_settings_field(
+			'jobs_plug_ad_single_sidebar',
+			__( 'Ad in Sidebar (Single)', 'jobs-plug' ),
+			array( $this, 'render_ad_field' ),
+			'jobs-plug-settings',
+			'jobs_plug_ads_section',
+			array( 'field' => 'jobs_plug_ad_single_sidebar' )
 		);
 	}
 
@@ -1725,6 +1833,88 @@ class Jobs_Plug {
 	 */
 	public function render_settings_section() {
 		echo '<p>' . esc_html__( 'Configure the general settings for Jobs Plug.', 'jobs-plug' ) . '</p>';
+	}
+
+	/**
+	 * Render ads section description.
+	 */
+	public function render_ads_section_description() {
+		echo '<p>' . esc_html__( 'Paste your Google AdSense ad code snippets in the fields below. The ads will be automatically displayed in the specified positions on job archive and single job pages.', 'jobs-plug' ) . '</p>';
+	}
+
+	/**
+	 * Render ad code field.
+	 *
+	 * @param array $args Field arguments.
+	 */
+	public function render_ad_field( $args ) {
+		$field = $args['field'];
+		$value = get_option( $field, '' );
+		?>
+		<textarea
+			name="<?php echo esc_attr( $field ); ?>"
+			id="<?php echo esc_attr( $field ); ?>"
+			rows="8"
+			class="large-text code"
+			placeholder="<?php esc_attr_e( 'Paste your ad code here...', 'jobs-plug' ); ?>"
+		><?php echo esc_textarea( $value ); ?></textarea>
+		<p class="description">
+			<?php
+			switch ( $field ) {
+				case 'jobs_plug_ad_archive_before':
+					esc_html_e( 'This ad will appear before the first job listing on archive pages.', 'jobs-plug' );
+					break;
+				case 'jobs_plug_ad_archive_after':
+					esc_html_e( 'This ad will appear after the last job listing on archive pages.', 'jobs-plug' );
+					break;
+				case 'jobs_plug_ad_single_content':
+					esc_html_e( 'This ad will be inserted after the second paragraph in the job description.', 'jobs-plug' );
+					break;
+				case 'jobs_plug_ad_single_before_apply':
+					esc_html_e( 'This ad will appear just before the "How to Apply" section.', 'jobs-plug' );
+					break;
+				case 'jobs_plug_ad_single_sidebar':
+					esc_html_e( 'This ad will appear in the sidebar on single job pages.', 'jobs-plug' );
+					break;
+			}
+			?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Sanitize ad code.
+	 *
+	 * @param string $input Ad code input.
+	 * @return string Sanitized ad code.
+	 */
+	public function sanitize_ad_code( $input ) {
+		// Allow script tags and common ad-related HTML.
+		// Use wp_kses with allowed tags for ad scripts.
+		$allowed_tags = array(
+			'script' => array(
+				'async'            => array(),
+				'src'              => array(),
+				'type'             => array(),
+				'data-ad-client'   => array(),
+				'crossorigin'      => array(),
+			),
+			'ins'    => array(
+				'class'            => array(),
+				'style'            => array(),
+				'data-ad-client'   => array(),
+				'data-ad-slot'     => array(),
+				'data-ad-format'   => array(),
+				'data-full-width-responsive' => array(),
+			),
+			'div'    => array(
+				'class' => array(),
+				'style' => array(),
+				'id'    => array(),
+			),
+		);
+
+		return wp_kses( $input, $allowed_tags );
 	}
 
 	/**
@@ -2003,5 +2193,55 @@ class Jobs_Plug {
 		}
 
 		return '';
+	}
+
+	/**
+	 * Output ad code for a specific position.
+	 *
+	 * @param string $position Ad position key.
+	 * @return void
+	 */
+	public function output_ad( $position ) {
+		$ad_code = get_option( 'jobs_plug_ad_' . $position, '' );
+
+		if ( ! empty( $ad_code ) ) {
+			echo '<div class="jobs-plug-ad jobs-plug-ad-' . esc_attr( $position ) . '">';
+			// Output ad code - already sanitized on save.
+			echo $ad_code;
+			echo '</div>';
+		}
+	}
+
+	/**
+	 * Insert ad into content after the second paragraph.
+	 *
+	 * @param string $content Post content.
+	 * @return string Modified content with ad.
+	 */
+	public function insert_ad_in_content( $content ) {
+		// Only run on single job pages.
+		if ( ! is_singular( 'job' ) || ! in_the_loop() || ! is_main_query() ) {
+			return $content;
+		}
+
+		$ad_code = get_option( 'jobs_plug_ad_single_content', '' );
+
+		if ( empty( $ad_code ) ) {
+			return $content;
+		}
+
+		// Find the closing tag of the second paragraph.
+		$closing_p = '</p>';
+		$paragraphs = explode( $closing_p, $content );
+
+		// If we have at least 2 paragraphs, insert ad after the 2nd one.
+		if ( count( $paragraphs ) >= 3 ) {
+			$ad_html = '<div class="jobs-plug-ad jobs-plug-ad-single-content">' . $ad_code . '</div>';
+			// Insert after 2nd paragraph (index 1).
+			$paragraphs[1] .= $closing_p . $ad_html;
+			$content = implode( $closing_p, $paragraphs );
+		}
+
+		return $content;
 	}
 }

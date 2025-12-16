@@ -149,6 +149,10 @@ get_header();
 
 					<!-- Application Method -->
 					<?php if ( ! empty( $application_method ) ) : ?>
+						<?php
+						// Output ad before "How to Apply" section.
+						\JobsPlug\Jobs_Plug::get_instance()->output_ad( 'single_before_apply' );
+						?>
 						<div class="jobs-plug-application-method" id="how-to-apply">
 							<h2><?php esc_html_e( 'How to Apply', 'jobs-plug' ); ?></h2>
 							<div class="jobs-plug-application-content">
@@ -188,6 +192,11 @@ get_header();
 
 				<!-- Sidebar -->
 				<div class="jobs-plug-single-sidebar">
+
+					<?php
+					// Output ad in sidebar.
+					\JobsPlug\Jobs_Plug::get_instance()->output_ad( 'single_sidebar' );
+					?>
 
 					<!-- Quick Apply Box -->
 					<div class="jobs-plug-sidebar-box jobs-plug-apply-box">

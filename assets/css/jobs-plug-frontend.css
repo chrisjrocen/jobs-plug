@@ -787,3 +787,61 @@
 		padding: 20px;
 	}
 }
+
+/* ============================================
+   Advertisement Styles
+   ============================================ */
+
+/* All ads - general styling */
+.jobs-plug-ad {
+	margin: 20px 0;
+	padding: 15px;
+	background: var(--theme-palette-color-8, #ffffff);
+	border-radius: 8px;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+	text-align: center;
+	overflow: hidden;
+}
+
+/* Archive page ads */
+.jobs-plug-ad-archive_before {
+	grid-column: 1 / -1; /* Span full width of grid */
+	margin-bottom: 20px;
+}
+
+.jobs-plug-ad-archive_after {
+	grid-column: 1 / -1; /* Span full width of grid */
+	margin-top: 20px;
+}
+
+/* Single page content ad */
+.jobs-plug-ad-single-content {
+	margin: 30px 0;
+	padding: 20px;
+}
+
+/* Single page before apply ad */
+.jobs-plug-ad-single_before_apply {
+	margin: 30px 0;
+	padding: 20px;
+}
+
+/* Single page sidebar ad */
+.jobs-plug-ad-single_sidebar {
+	margin-bottom: 20px;
+	padding: 15px;
+}
+
+/* Responsive ad adjustments */
+@media screen and (max-width: 768px) {
+	.jobs-plug-ad {
+		margin: 15px 0;
+		padding: 10px;
+	}
+
+	.jobs-plug-ad-single-content,
+	.jobs-plug-ad-single_before_apply {
+		margin: 20px 0;
+		padding: 15px;
+	}
+}
