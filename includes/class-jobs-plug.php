@@ -603,6 +603,7 @@ class Jobs_Plug {
 		$application_method = get_post_meta( $post->ID, '_job_application_method', true );
 		$expiry_date        = get_post_meta( $post->ID, '_job_expiry_date', true );
 		$salary             = get_post_meta( $post->ID, '_job_salary', true );
+		$is_remote          = get_post_meta( $post->ID, '_job_is_remote', true );
 
 		// Get taxonomy terms.
 		$employers = get_the_terms( $post->ID, 'employer' );
@@ -610,54 +611,61 @@ class Jobs_Plug {
 		$countries = get_the_terms( $post->ID, 'country' );
 		$job_types = get_the_terms( $post->ID, 'job_type' );
 
-		// Build schema data.
-		$schema = array(
-			'@context'    => 'https://schema.org',
-			'@type'       => 'JobPosting',
-			'title'       => get_the_title( $post->ID ),
-			'description' => wp_strip_all_tags( get_post_field( 'post_content', $post->ID ) ),
-			'datePosted'  => get_the_date( 'c', $post->ID ),
-			'url'         => get_permalink( $post->ID ),
+		// Build JobPosting schema data.
+		$job_posting = array(
+			'@type'            => 'JobPosting',
+			'@id'              => esc_url( get_permalink( $post->ID ) . '#jobposting' ),
+			'title'            => wp_strip_all_tags( get_the_title( $post->ID ) ),
+			'description'      => $this->get_job_description_for_schema( $post->ID ),
+			'datePosted'       => get_the_date( 'c', $post->ID ),
+			'url'              => esc_url( get_permalink( $post->ID ) ),
+			'mainEntityOfPage' => array(
+				'@type' => 'WebPage',
+				'@id'   => esc_url( get_permalink( $post->ID ) . '#webpage' ),
+			),
 		);
 
 		// Add hiring organization.
 		if ( ! empty( $employers ) && ! is_wp_error( $employers ) ) {
-			$schema['hiringOrganization'] = array(
+			$job_posting['hiringOrganization'] = array(
 				'@type' => 'Organization',
-				'name'  => $employers[0]->name,
+				'@id'   => esc_url( get_permalink( $post->ID ) . '#organization' ),
+				'name'  => wp_strip_all_tags( $employers[0]->name ),
 			);
 		} else {
 			// Fallback to site name.
-			$schema['hiringOrganization'] = array(
+			$job_posting['hiringOrganization'] = array(
 				'@type' => 'Organization',
-				'name'  => get_bloginfo( 'name' ),
+				'@id'   => esc_url( get_permalink( $post->ID ) . '#organization' ),
+				'name'  => wp_strip_all_tags( get_bloginfo( 'name' ) ),
 			);
+		}
+
+		// Add logo to hiring organization (strongly recommended by Google for rich results).
+		$logo_url = $this->get_employer_logo_url_for_schema( $post->ID );
+		if ( ! empty( $logo_url ) ) {
+			$job_posting['hiringOrganization']['logo'] = $logo_url;
 		}
 
 		// Add job location.
 		if ( ! empty( $locations ) && ! is_wp_error( $locations ) ) {
-			$schema['jobLocation'] = array(
+			$job_posting['jobLocation'] = array(
 				'@type'   => 'Place',
 				'address' => array(
 					'@type'           => 'PostalAddress',
-					'addressLocality' => $locations[0]->name,
+					'addressLocality' => wp_strip_all_tags( $locations[0]->name ),
 				),
 			);
 
 			// Add country to location if available.
 			if ( ! empty( $countries ) && ! is_wp_error( $countries ) ) {
-				$schema['jobLocation']['address']['addressCountry'] = $countries[0]->name;
+				$job_posting['jobLocation']['address']['addressCountry'] = wp_strip_all_tags( $countries[0]->name );
 			}
 		}
 
-		// Add expiry date (validThrough).
-		if ( ! empty( $expiry_date ) ) {
-			// Convert to ISO 8601 format.
-			$expiry_timestamp = strtotime( $expiry_date );
-			if ( $expiry_timestamp ) {
-				$schema['validThrough'] = date( 'c', $expiry_timestamp );
-			}
-		}
+		// Add expiry date (validThrough) - REQUIRED by Google.
+		$valid_through = $this->calculate_valid_through_date( $post->ID, $expiry_date );
+		$job_posting['validThrough'] = $valid_through;
 
 		// Add employment type.
 		if ( ! empty( $job_types ) && ! is_wp_error( $job_types ) ) {
@@ -682,34 +690,159 @@ class Jobs_Plug {
 
 			$job_type_slug = strtolower( $job_types[0]->slug );
 			if ( isset( $employment_type_map[ $job_type_slug ] ) ) {
-				$schema['employmentType'] = $employment_type_map[ $job_type_slug ];
+				$job_posting['employmentType'] = $employment_type_map[ $job_type_slug ];
 			}
 		}
 
 		// Add salary (baseSalary).
 		if ( ! empty( $salary ) && is_numeric( $salary ) ) {
-			$schema['baseSalary'] = array(
+			$job_posting['baseSalary'] = array(
 				'@type'    => 'MonetaryAmount',
 				'currency' => 'UGX', // Uganda Shillings - adjust as needed.
 				'value'    => array(
 					'@type'    => 'QuantitativeValue',
 					'value'    => $salary,
-					'unitText' => 'YEAR',
+					'unitText' => 'MONTH',
 				),
 			);
 		}
 
 		// Add identifier.
-		$schema['identifier'] = array(
+		$job_posting['identifier'] = array(
 			'@type' => 'PropertyValue',
 			'name'  => get_bloginfo( 'name' ),
 			'value' => $post->ID,
 		);
 
+		// Add jobLocationType for remote jobs (strongly recommended by Google).
+		if ( '1' === $is_remote ) {
+			// TELECOMMUTE indicates the job is remote/work-from-home.
+			$job_posting['jobLocationType'] = 'TELECOMMUTE';
+
+			// Add applicantLocationRequirements for remote jobs.
+			// This specifies which countries/regions can apply for the remote position.
+			if ( ! empty( $countries ) && ! is_wp_error( $countries ) ) {
+				$applicant_locations = array();
+				foreach ( $countries as $country ) {
+					$applicant_locations[] = array(
+						'@type' => 'Country',
+						'name'  => wp_strip_all_tags( $country->name ),
+					);
+				}
+				if ( ! empty( $applicant_locations ) ) {
+					$job_posting['applicantLocationRequirements'] = $applicant_locations;
+				}
+			}
+		}
+
+		// Add potentialAction (ApplyAction) - provides direct apply link.
+		if ( ! empty( $application_method ) ) {
+			$job_posting['potentialAction'] = array(
+				'@type' => 'ApplyAction',
+				'name'  => 'Apply for this position',
+				'url'   => esc_url( get_permalink( $post->ID ) ),
+			);
+		}
+
 		/**
-		 * Filter the JobPosting schema markup.
+		 * Filter the JobPosting schema markup before adding to @graph.
 		 *
-		 * @param array   $schema The schema data array.
+		 * @param array   $job_posting The JobPosting schema data array.
+		 * @param WP_Post $post        The current post object.
+		 */
+		$job_posting = apply_filters( 'jobs_plug_jobposting_schema', $job_posting, $post );
+
+		// Get primary image for the job (employer logo or featured image).
+		$primary_image_url = '';
+		if ( has_post_thumbnail( $post->ID ) ) {
+			$primary_image_url = get_the_post_thumbnail_url( $post->ID, 'full' );
+		} elseif ( ! empty( $logo_url ) ) {
+			$primary_image_url = $logo_url;
+		}
+
+		// Build WebPage entity.
+		$webpage = array(
+			'@type'            => 'WebPage',
+			'@id'              => esc_url( get_permalink( $post->ID ) . '#webpage' ),
+			'url'              => esc_url( get_permalink( $post->ID ) ),
+			'name'             => wp_strip_all_tags( get_the_title( $post->ID ) ),
+			'description'      => wp_strip_all_tags( get_the_excerpt( $post->ID ) ),
+			'mainEntity'       => array( '@id' => esc_url( get_permalink( $post->ID ) . '#jobposting' ) ),
+			'publisher'        => array( '@id' => esc_url( get_permalink( $post->ID ) . '#organization' ) ),
+			'breadcrumb'       => array( '@id' => esc_url( get_permalink( $post->ID ) . '#breadcrumb' ) ),
+			'inLanguage'       => get_bloginfo( 'language' ),
+			'datePublished'    => get_the_date( 'c', $post->ID ),
+			'dateModified'     => get_the_modified_date( 'c', $post->ID ),
+		);
+
+		// Add primary image if available.
+		if ( ! empty( $primary_image_url ) ) {
+			$webpage['primaryImageOfPage'] = array(
+				'@type' => 'ImageObject',
+				'url'   => esc_url( $primary_image_url ),
+			);
+		}
+
+		// Build BreadcrumbList entity.
+		$breadcrumb_items = array(
+			array(
+				'@type'    => 'ListItem',
+				'position' => 1,
+				'name'     => wp_strip_all_tags( get_bloginfo( 'name' ) ),
+				'item'     => esc_url( home_url( '/' ) ),
+			),
+			array(
+				'@type'    => 'ListItem',
+				'position' => 2,
+				'name'     => 'Jobs',
+				'item'     => esc_url( get_post_type_archive_link( 'job' ) ),
+			),
+		);
+
+		// Add job category to breadcrumb if available.
+		$job_categories = get_the_terms( $post->ID, 'job_category' );
+		if ( ! empty( $job_categories ) && ! is_wp_error( $job_categories ) ) {
+			$breadcrumb_items[] = array(
+				'@type'    => 'ListItem',
+				'position' => 3,
+				'name'     => wp_strip_all_tags( $job_categories[0]->name ),
+				'item'     => esc_url( get_term_link( $job_categories[0] ) ),
+			);
+			$breadcrumb_items[] = array(
+				'@type'    => 'ListItem',
+				'position' => 4,
+				'name'     => wp_strip_all_tags( get_the_title( $post->ID ) ),
+				'item'     => esc_url( get_permalink( $post->ID ) ),
+			);
+		} else {
+			$breadcrumb_items[] = array(
+				'@type'    => 'ListItem',
+				'position' => 3,
+				'name'     => wp_strip_all_tags( get_the_title( $post->ID ) ),
+				'item'     => esc_url( get_permalink( $post->ID ) ),
+			);
+		}
+
+		$breadcrumb = array(
+			'@type'           => 'BreadcrumbList',
+			'@id'             => esc_url( get_permalink( $post->ID ) . '#breadcrumb' ),
+			'itemListElement' => $breadcrumb_items,
+		);
+
+		// Build final @graph schema structure.
+		$schema = array(
+			'@context' => 'https://schema.org',
+			'@graph'   => array(
+				$webpage,
+				$breadcrumb,
+				$job_posting,
+			),
+		);
+
+		/**
+		 * Filter the complete schema markup with @graph structure.
+		 *
+		 * @param array   $schema The complete schema data array.
 		 * @param WP_Post $post   The current post object.
 		 */
 		$schema = apply_filters( 'jobs_plug_schema_markup', $schema, $post );
@@ -719,6 +852,167 @@ class Jobs_Plug {
 		echo '<script type="application/ld+json">' . "\n";
 		echo wp_json_encode( $schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
 		echo "\n</script>\n";
+	}
+
+	/**
+	 * Get employer logo URL for JobPosting schema with fallback support.
+	 *
+	 * Google strongly recommends including a logo in hiringOrganization for better
+	 * rich results display. This method follows the same fallback logic as get_employer_logo()
+	 * but returns a URL instead of HTML.
+	 *
+	 * Fallback order:
+	 * 1. Employer-specific logo from taxonomy meta
+	 * 2. Default employer logo from plugin settings
+	 * 3. Site logo (custom_logo theme mod)
+	 *
+	 * @param int $post_id The job post ID.
+	 * @return string The logo URL or empty string if no logo found.
+	 */
+	private function get_employer_logo_url_for_schema( $post_id ) {
+		$logo_id = 0;
+
+		// First, try to get employer-specific logo.
+		$employers = get_the_terms( $post_id, 'employer' );
+		if ( ! empty( $employers ) && ! is_wp_error( $employers ) ) {
+			$employer_id = $employers[0]->term_id;
+			$logo_id     = absint( get_term_meta( $employer_id, 'employer_logo_id', true ) );
+		}
+
+		// If no employer logo, try default logo from settings.
+		if ( empty( $logo_id ) || $logo_id < 1 ) {
+			$logo_id = absint( get_option( 'jobs_plug_default_employer_logo', 0 ) );
+		}
+
+		// If no default logo, try website logo.
+		if ( empty( $logo_id ) || $logo_id < 1 ) {
+			// Try custom logo first (WordPress 4.5+).
+			$custom_logo_id = get_theme_mod( 'custom_logo' );
+			if ( $custom_logo_id ) {
+				$logo_id = absint( $custom_logo_id );
+			}
+		}
+
+		// If we have a logo ID, get the image URL.
+		if ( ! empty( $logo_id ) && $logo_id > 0 ) {
+			// Get full size image URL for best quality in search results.
+			// Google recommends at least 112px wide, 1:1 aspect ratio preferred.
+			$logo_url = wp_get_attachment_image_url( $logo_id, 'full' );
+			if ( ! empty( $logo_url ) ) {
+				// Ensure the URL is absolute (required by Google).
+				return esc_url( $logo_url );
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * Get job description for JobPosting schema with HTML formatting.
+	 *
+	 * Google requires the full job description with HTML tags for rich results.
+	 * This method:
+	 * - Returns the full post content with HTML tags (p, ul, li, br, strong, em, a, etc)
+	 * - Uses wp_kses_post() to allow safe HTML while filtering dangerous tags
+	 * - Ensures the description is not identical to the title
+	 * - Falls back to title if content is empty (to maintain valid schema)
+	 *
+	 * @param int $post_id The job post ID.
+	 * @return string HTML-formatted job description.
+	 */
+	private function get_job_description_for_schema( $post_id ) {
+		// Get the full post content with HTML.
+		$content = get_post_field( 'post_content', $post_id );
+
+		// Apply content filters (same as the_content, but without wpautop issues).
+		// This processes shortcodes and applies other content filters.
+		$content = apply_filters( 'the_content', $content );
+
+		// Remove script and style tags that might have been added.
+		$content = preg_replace( '/<script\b[^>]*>(.*?)<\/script>/is', '', $content );
+		$content = preg_replace( '/<style\b[^>]*>(.*?)<\/style>/is', '', $content );
+
+		// Use wp_kses_post to allow safe HTML tags while filtering dangerous content.
+		// This allows: p, ul, ol, li, br, strong, em, b, i, a, h1-h6, blockquote, etc.
+		$description = wp_kses_post( $content );
+
+		// Trim whitespace and remove empty paragraphs.
+		$description = trim( $description );
+		$description = preg_replace( '/<p>(\s|&nbsp;)*<\/p>/i', '', $description );
+
+		// If description is empty or too short, fall back to the title to maintain valid schema.
+		// Google requires a description that's different from the title.
+		if ( empty( $description ) || strlen( strip_tags( $description ) ) < 10 ) {
+			$title       = get_the_title( $post_id );
+			$description = '<p>' . esc_html( $title ) . '</p><p>Please contact us for more details about this position.</p>';
+		}
+
+		// Ensure the description is not identical to the title (Google requirement).
+		$title            = get_the_title( $post_id );
+		$description_text = wp_strip_all_tags( $description );
+
+		if ( trim( $description_text ) === trim( $title ) ) {
+			$description .= '<p>For more information about this opportunity, please visit our website or contact our hiring team.</p>';
+		}
+
+		return $description;
+	}
+
+	/**
+	 * Calculate the validThrough date for JobPosting schema.
+	 *
+	 * Requirements:
+	 * - Always returns a date (required field)
+	 * - Uses custom expiration meta field if set and in the future
+	 * - Falls back to 30 days after post publish date
+	 * - Returns ISO 8601 format with timezone at end-of-day (23:59:59)
+	 *
+	 * @param int    $post_id     The job post ID.
+	 * @param string $expiry_date The custom expiry date from meta (Y-m-d format).
+	 * @return string ISO 8601 formatted date with timezone.
+	 */
+	private function calculate_valid_through_date( $post_id, $expiry_date ) {
+		$valid_through_timestamp = null;
+
+		// Try to use the custom expiration meta field if it's set and in the future.
+		if ( ! empty( $expiry_date ) ) {
+			// Parse the expiry date (stored as Y-m-d in meta).
+			// Set to end of day in the site's timezone.
+			$expiry_datetime = \DateTime::createFromFormat( 'Y-m-d H:i:s', $expiry_date . ' 23:59:59', wp_timezone() );
+
+			if ( $expiry_datetime ) {
+				$now = new \DateTime( 'now', wp_timezone() );
+
+				// Only use the custom expiry date if it's in the future.
+				if ( $expiry_datetime > $now ) {
+					$valid_through_timestamp = $expiry_datetime->getTimestamp();
+				}
+			}
+		}
+
+		// If no valid custom expiry date, default to 30 days after the post's publish date.
+		if ( null === $valid_through_timestamp ) {
+			// Get the post's publish date (datePosted in schema).
+			$post_date = get_post_field( 'post_date', $post_id );
+
+			// Create DateTime object from post date in the site's timezone.
+			$post_datetime = new \DateTime( $post_date, wp_timezone() );
+
+			// Add 30 days.
+			$post_datetime->modify( '+30 days' );
+
+			// Set to end of day.
+			$post_datetime->setTime( 23, 59, 59 );
+
+			$valid_through_timestamp = $post_datetime->getTimestamp();
+		}
+
+		// Convert timestamp to ISO 8601 format with timezone.
+		// Using 'c' format produces: 2025-12-16T23:59:59+00:00
+		$valid_through_datetime = new \DateTime( '@' . $valid_through_timestamp );
+		$valid_through_datetime->setTimezone( wp_timezone() );
+
+		return $valid_through_datetime->format( 'c' );
 	}
 
 	/**
